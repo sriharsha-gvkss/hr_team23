@@ -420,6 +420,10 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             
             userResponses.slice(0, 5).forEach((response, index) => {
+                console.log('🔍 Processing response:', response);
+                console.log('📋 Response ID:', response.id);
+                console.log('📞 Call SID:', response.callSid);
+                
                 const call = calls.find(c => c.twilio_call_sid === response.callSid);
                 const responseDate = new Date(response.timestamp).toLocaleDateString('en-IN', {
                     year: 'numeric',
@@ -436,6 +440,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const confidenceColor = avgConfidence >= 80 ? '#10b981' : avgConfidence >= 60 ? '#f59e0b' : '#ef4444';
                 const confidenceText = avgConfidence >= 80 ? 'High' : avgConfidence >= 60 ? 'Medium' : 'Low';
                 
+                // Use data attribute approach instead of inline onclick
+                const responseData = JSON.stringify(response).replace(/'/g, "&apos;");
+                
                 html += `
                     <div style='background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem;'>
                         <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
@@ -451,7 +458,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div style='font-size: 0.9rem; color: #374151;'>
                             <strong>Questions Answered:</strong> ${response.answers?.length || 0}
                         </div>
-                        <button onclick="viewResponseDetails('${response.id}')" style='
+                        <button class="view-response-btn" data-response='${responseData}' style='
                             background: #667eea; color: white; border: none; padding: 0.5rem 1rem; 
                             border-radius: 6px; font-size: 0.9rem; cursor: pointer; margin-top: 0.5rem;
                             display: flex; align-items: center; gap: 0.3rem;
@@ -511,6 +518,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-file-alt'></i> Report</div><div class='info-box-content'>${html}</div>`;
+        
+        // Add event listeners for view buttons
+        document.querySelectorAll('.view-response-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                console.log('🔘 View button clicked');
+                const responseData = JSON.parse(e.currentTarget.dataset.response);
+                console.log('📊 Parsed response data:', responseData);
+                console.log('📋 Response ID:', responseData.id);
+                viewResponseDetails(responseData.id);
+            });
+        });
     }
 
     // Helper to get current user ID from token
