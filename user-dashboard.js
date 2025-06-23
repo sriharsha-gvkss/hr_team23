@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     ? (avgConfidence >= 80 ? '#10b981' : avgConfidence >= 60 ? '#f59e0b' : '#ef4444')
                     : '#6b7280';
                 
-                const responseRow = `
+                html += `
                     <div style="
                         background: white;
                         border: 1px solid #e5e7eb;
@@ -503,8 +503,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                 `;
-                
-                responsesContainer.innerHTML += responseRow;
             });
             
             html += `
