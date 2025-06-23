@@ -531,6 +531,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Make downloadResponseReport globally accessible
+    window.downloadResponseReport = downloadResponseReport;
+
     // Download individual response report
     async function downloadResponseReport(responseId) {
         try {
@@ -562,6 +565,52 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Failed to download response report: ' + error.message);
         }
     }
+
+    // Test function for response modal (can be called from browser console)
+    window.testResponseModal = () => {
+        const testResponseData = {
+            id: "test-resp-001",
+            callSid: "CA1234567890abcdef",
+            userName: "Test User",
+            phone: "+91 9876543210",
+            timestamp: new Date().toISOString(),
+            answers: [
+                "Yes, I am interested in the position",
+                "I have 5 years of experience in software development",
+                "My expected salary is 50,000 dollars per year",
+                "I can start immediately",
+                "I prefer remote work"
+            ],
+            confidences: [0.92, 0.87, 0.85, 0.94, 0.91]
+        };
+        
+        console.log('🧪 Testing response modal with sample data:', testResponseData);
+        openResponseModal(testResponseData);
+    };
+
+    // Debug function to check if modal elements exist
+    window.debugModalElements = () => {
+        const modal = document.getElementById('viewResponseModal');
+        const questionsList = document.getElementById('questionsAnswersList');
+        const responseId = document.getElementById('responseId');
+        
+        console.log('🔍 Modal element:', modal);
+        console.log('🔍 Questions list element:', questionsList);
+        console.log('🔍 Response ID element:', responseId);
+        
+        if (modal) {
+            console.log('✅ Modal found');
+            console.log('📋 Modal display style:', modal.style.display);
+        } else {
+            console.log('❌ Modal not found');
+        }
+        
+        if (questionsList) {
+            console.log('✅ Questions list found');
+        } else {
+            console.log('❌ Questions list not found');
+        }
+    };
 
     // Download all reports button
     const downloadAllReportsBtn = document.getElementById('downloadAllReportsBtn');
@@ -1099,129 +1148,4 @@ document.addEventListener('DOMContentLoaded', () => {
     window.triggerCall = triggerCall;
     window.downloadCallReport = downloadCallReport;
     window.openResponseModal = openResponseModal;
-
-    // --- Response Modal Logic ---
-    const viewResponseModal = document.getElementById('viewResponseModal');
-    const closeResponseModalBtn = viewResponseModal.querySelector('.close-btn');
-    const downloadResponseDetailsBtn = document.getElementById('downloadResponseDetailsBtn');
-
-    // Close response modal
-    closeResponseModalBtn.addEventListener('click', () => {
-        viewResponseModal.style.display = 'none';
-    });
-
-    // Close modal when clicking outside
-    window.addEventListener('click', (e) => {
-        if (e.target === viewResponseModal) {
-            viewResponseModal.style.display = 'none';
-        }
-    });
-
-    // Open response modal with data
-    const openResponseModal = async (responseData) => {
-        try {
-            console.log('🔍 Opening response modal with data:', responseData);
-            console.log('📋 Response answers:', responseData.answers);
-            console.log('📊 Response confidences:', responseData.confidences);
-            
-            // Load questions to match with answers
-            const questionsResponse = await fetch('/api/questions', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const questionsData = await questionsResponse.json();
-            const questions = questionsData.questions || [];
-            console.log('❓ Loaded questions:', questions);
-
-            // Populate modal with response data
-            document.getElementById('responseId').textContent = responseData.id || 'N/A';
-            document.getElementById('responseCallSid').textContent = responseData.callSid || 'N/A';
-            document.getElementById('responseUserName').textContent = responseData.userName || 'N/A';
-            document.getElementById('responsePhone').textContent = responseData.phone || 'N/A';
-            document.getElementById('responseDate').textContent = new Date(responseData.timestamp || Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-
-            // Populate questions and answers
-            const questionsAnswersList = document.getElementById('questionsAnswersList');
-            questionsAnswersList.innerHTML = '';
-
-            if (responseData.answers && responseData.answers.length > 0) {
-                console.log('✅ Found answers, populating list...');
-                responseData.answers.forEach((answer, index) => {
-                    const question = questions[index] || `Question ${index + 1}`;
-                    const confidence = responseData.confidences ? responseData.confidences[index] : null;
-                    
-                    console.log(`📝 Q${index + 1}: ${question} -> A: ${answer} (confidence: ${confidence})`);
-                    
-                    const qaItem = document.createElement('div');
-                    qaItem.className = 'qa-item';
-                    
-                    let confidenceBadge = '';
-                    if (confidence !== null) {
-                        const confidenceClass = confidence >= 0.8 ? 'confidence-high' : 
-                                               confidence >= 0.6 ? 'confidence-medium' : 'confidence-low';
-                        confidenceBadge = `<span class="qa-confidence ${confidenceClass}">${Math.round(confidence * 100)}%</span>`;
-                    }
-                    
-                    qaItem.innerHTML = `
-                        <div class="qa-question">
-                            <strong>Q${index + 1}:</strong> ${question}
-                        </div>
-                        <div class="qa-answer">
-                            <strong>A:</strong> ${answer} ${confidenceBadge}
-                        </div>
-                    `;
-                    questionsAnswersList.appendChild(qaItem);
-                });
-            } else {
-                console.log('❌ No answers found in response data');
-                questionsAnswersList.innerHTML = '<p style="text-align: center; color: #6c757d; padding: 2rem;">No answers recorded for this response.</p>';
-            }
-
-            // Set up download button
-            downloadResponseDetailsBtn.onclick = () => {
-                downloadResponseReport(responseData.id);
-            };
-
-            // Show modal
-            viewResponseModal.style.display = 'flex';
-            console.log('✅ Response modal opened successfully');
-        } catch (error) {
-            console.error('❌ Error opening response modal:', error);
-            alert('Error loading response details: ' + error.message);
-        }
-    };
-
-    // Download individual response report
-    async function downloadResponseReport(responseId) {
-        try {
-            console.log(`📥 Downloading response report for ${responseId}...`);
-            const response = await fetch(`/api/download-response-report/${responseId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Download failed');
-            }
-            
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `response_report_${responseId}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            
-            console.log('✅ Response report downloaded successfully');
-        } catch (error) {
-            console.error('❌ Error downloading response report:', error);
-            alert('Failed to download response report: ' + error.message);
-        }
-    }
-
-    // Make downloadResponseReport globally accessible
-    window.downloadResponseReport = downloadResponseReport;
 });
