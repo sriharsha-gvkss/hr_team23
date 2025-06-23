@@ -1,5 +1,44 @@
 {
   "calls": [
-    
+    {
+      "id": "test-scheduling-001",
+      "name": "Test Scheduling Call",
+      "phone": "+1234567890",
+      "userId": 2,
+      "scheduledTime": "2025-06-23T15:50:00.000Z",
+      "status": "completed",
+      "twilio_call_sid": "test-scheduling-001",
+      "created_at": "2025-06-23T10:00:00.000Z"
+    },
+    {
+      "id": "15",
+      "name": "venkatesh",
+      "phone": "+91 8008162349",
+      "userId": 1,
+      "scheduledTime": "2025-06-23T05:25:00.000Z",
+      "status": "completed",
+      "twilio_call_sid": "CA107020c9d004019b9ce96a20dda5a203",
+      "created_at": "2025-06-23T10:00:00.000Z"
+    },
+    {
+      "id": "16",
+      "name": "harsha",
+      "phone": "+91 8008162349",
+      "userId": 1,
+      "scheduledTime": "2025-06-23T11:51:00.000Z",
+      "status": "completed",
+      "twilio_call_sid": "CA9bc6fbedaf51d31d1c4332cb10e1d880",
+      "created_at": "2025-06-23T11:00:00.000Z"
+    },
+    {
+      "id": "17",
+      "name": "harsha",
+      "phone": "+91 8008162349",
+      "userId": 2,
+      "scheduledTime": "2025-06-23T11:51:00.000Z",
+      "status": "completed",
+      "twilio_call_sid": "CA79fcbe1e105bd275f6f2334eb07968ef",
+      "created_at": "2025-06-23T11:00:00.000Z"
+    }
   ]
 }

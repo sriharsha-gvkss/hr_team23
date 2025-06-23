@@ -3,7 +3,7 @@
     {
       "id": "resp-001",
       "callSid": "CA107020c9d004019b9ce96a20dda5a203",
-      "userId": "1",
+      "userId": 1,
       "answers": [
         "Yes, I am interested in the position",
         "I have 5 years of experience in software development",
@@ -17,7 +17,7 @@
     {
       "id": "resp-002",
       "callSid": "test-scheduling-001",
-      "userId": "2",
+      "userId": 2,
       "answers": [
         "Yes, I am very interested",
         "I have 3 years of experience",
@@ -31,7 +31,7 @@
     {
       "id": "resp-003",
       "callSid": "immediate-test",
-      "userId": "3",
+      "userId": 3,
       "answers": [
         "No, I am not available",
         "I have 1 year of experience",
@@ -45,7 +45,7 @@
     {
       "id": "resp-004",
       "callSid": "CA9bc6fbedaf51d31d1c4332cb10e1d880",
-      "userId": "1",
+      "userId": 1,
       "answers": [
         "Yes, I am available for the interview",
         "I have 4 years of experience in web development",
@@ -59,7 +59,7 @@
     {
       "id": "resp-005",
       "callSid": "CA79fcbe1e105bd275f6f2334eb07968ef",
-      "userId": "2",
+      "userId": 2,
       "answers": [
         "Yes, I am interested in the opportunity",
         "I have 6 years of experience in mobile development",

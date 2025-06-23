@@ -382,14 +382,22 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const userResponses = responses.filter(r => {
             const call = calls.find(c => c.twilio_call_sid === r.callSid);
-            const isUserResponse = call && call.userId === userId;
-            console.log(`🔍 Response ${r.id}: callSid=${r.callSid}, call.userId=${call?.userId}, isUserResponse=${isUserResponse}`);
+            // Ensure proper type comparison - convert both to numbers
+            const callUserId = parseInt(call?.userId);
+            const currentUserId = parseInt(userId);
+            const isUserResponse = call && callUserId === currentUserId;
+            console.log(`🔍 Response ${r.id}: callSid=${r.callSid}, call.userId=${call?.userId} (${typeof call?.userId}), currentUserId=${userId} (${typeof userId}), isUserResponse=${isUserResponse}`);
             return isUserResponse;
         });
         
         console.log('👤 Filtered user responses:', userResponses);
         
-        const userCalls = calls.filter(c => c.userId === userId);
+        const userCalls = calls.filter(c => {
+            // Ensure proper type comparison - convert both to numbers
+            const callUserId = parseInt(c.userId);
+            const currentUserId = parseInt(userId);
+            return callUserId === currentUserId;
+        });
         console.log('📞 User calls:', userCalls);
         
         if (userResponses.length === 0 && userCalls.length === 0) {
