@@ -1490,7 +1490,20 @@ app.get('/api/responses/:responseId', authenticateToken, (req, res) => {
         const callsData = loadCalls();
         const usersData = loadUsers();
 
-        const response = responses.find(r => r.id === responseId);
+        let response;
+        
+        // Handle generated response IDs (format: resp-{callSid}-{index})
+        if (responseId.startsWith('resp-')) {
+            const parts = responseId.split('-');
+            if (parts.length >= 3) {
+                const callSid = parts[1];
+                response = responses.find(r => r.callSid === callSid);
+            }
+        } else {
+            // Try to find by original ID
+            response = responses.find(r => r.id === responseId);
+        }
+
         if (!response) {
             return res.status(404).json({ 
                 success: false, 
@@ -1504,6 +1517,7 @@ app.get('/api/responses/:responseId', authenticateToken, (req, res) => {
         
         const enhancedResponse = {
             ...response,
+            id: responseId, // Use the requested ID
             userName: user ? user.name : 'N/A',
             phone: call ? call.phone : 'N/A',
             contactName: call ? call.name : 'N/A'

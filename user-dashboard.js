@@ -434,6 +434,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('📞 Call SID:', response.callSid);
                 console.log('👤 User ID:', response.userId);
                 
+                // Generate a unique ID for the response since it doesn't have one
+                const responseId = response.id || `resp-${response.callSid}-${index}`;
+                console.log('🆔 Generated Response ID:', responseId);
+                
                 const call = calls.find(c => c.twilio_call_sid === response.callSid);
                 const responseDate = new Date(response.timestamp).toLocaleDateString('en-IN', {
                     year: 'numeric',
@@ -450,8 +454,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const confidenceColor = avgConfidence >= 80 ? '#10b981' : avgConfidence >= 60 ? '#f59e0b' : '#ef4444';
                 const confidenceText = avgConfidence >= 80 ? 'High' : avgConfidence >= 60 ? 'Medium' : 'Low';
                 
+                // Create response data with the generated ID
+                const responseDataWithId = {
+                    ...response,
+                    id: responseId
+                };
+                
                 // Use data attribute approach instead of inline onclick
-                const responseData = JSON.stringify(response).replace(/'/g, "&apos;");
+                const responseData = JSON.stringify(responseDataWithId).replace(/'/g, "&apos;");
                 console.log('📊 JSON stringified response data:', responseData);
                 
                 html += `
