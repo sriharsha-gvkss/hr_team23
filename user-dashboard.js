@@ -700,7 +700,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         ${generateQuestionsHTML(responseData, questions)}
                     </div>
                     
-                    <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+                    <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; gap: 1rem;">
+                        <button id="downloadUserResponseBtn" style="
+                            background: #667eea;
+                            color: white;
+                            border: none;
+                            padding: 0.75rem 1.5rem;
+                            border-radius: 8px;
+                            font-size: 1rem;
+                            font-weight: 600;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            gap: 0.5rem;
+                        ">
+                            <i class="fas fa-download"></i> Download Response
+                        </button>
                         <button id="closeUserResponseModalBtn" style="
                             background: #6b7280;
                             color: white;
@@ -724,6 +739,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add event listeners
         document.getElementById('closeUserResponseModal').addEventListener('click', closeUserResponseModal);
         document.getElementById('closeUserResponseModalBtn').addEventListener('click', closeUserResponseModal);
+        document.getElementById('downloadUserResponseBtn').addEventListener('click', () => downloadUserResponseDetails(responseData.id));
         
         // Close modal when clicking outside
         document.getElementById('userResponseModal').addEventListener('click', function(e) {
@@ -784,6 +800,38 @@ document.addEventListener('DOMContentLoaded', function() {
         const modal = document.getElementById('userResponseModal');
         if (modal) {
             modal.remove();
+        }
+    }
+
+    // Function to download user response details
+    async function downloadUserResponseDetails(responseId) {
+        try {
+            console.log(`📥 Downloading user response details for ${responseId}...`);
+            
+            const response = await fetch(`/api/download-response-report/${responseId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Download failed');
+            }
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `my_response_details_${responseId}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            console.log('✅ User response details downloaded successfully');
+            showNotification('Response details downloaded successfully!', 'success');
+        } catch (error) {
+            console.error('❌ Error downloading user response details:', error);
+            showNotification('Failed to download response details: ' + error.message, 'error');
         }
     }
 

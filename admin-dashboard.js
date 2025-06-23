@@ -1148,4 +1148,144 @@ document.addEventListener('DOMContentLoaded', () => {
     window.triggerCall = triggerCall;
     window.downloadCallReport = downloadCallReport;
     window.openResponseModal = openResponseModal;
+
+    // Function to open response details modal
+    function openResponseModal(responseData) {
+        console.log('🔍 Opening response modal with data:', responseData);
+        
+        // Get modal elements
+        const modal = document.getElementById('viewResponseModal');
+        const responseId = document.getElementById('responseId');
+        const responseCallSid = document.getElementById('responseCallSid');
+        const responseUserName = document.getElementById('responseUserName');
+        const responsePhone = document.getElementById('responsePhone');
+        const responseDate = document.getElementById('responseDate');
+        const questionsAnswersList = document.getElementById('questionsAnswersList');
+        const downloadBtn = document.getElementById('downloadResponseDetailsBtn');
+        
+        if (!modal) {
+            console.error('❌ Response modal not found');
+            alert('Modal not found. Please refresh the page.');
+            return;
+        }
+        
+        // Populate modal with response data
+        responseId.textContent = responseData.id || 'N/A';
+        responseCallSid.textContent = responseData.callSid || 'N/A';
+        responseUserName.textContent = responseData.userName || 'N/A';
+        responsePhone.textContent = responseData.phone || 'N/A';
+        responseDate.textContent = new Date(responseData.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+        
+        // Load questions to match with answers
+        loadQuestionsForModal(responseData, questionsAnswersList);
+        
+        // Set up download button
+        downloadBtn.onclick = () => downloadResponseDetails(responseData.id);
+        
+        // Show modal
+        modal.style.display = 'flex';
+        
+        // Close modal when clicking on X or outside
+        const closeBtn = modal.querySelector('.close-btn');
+        closeBtn.onclick = () => {
+            modal.style.display = 'none';
+        };
+        
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        };
+        
+        console.log('✅ Response modal opened successfully');
+    }
+
+    // Function to load questions for the modal
+    async function loadQuestionsForModal(responseData, container) {
+        try {
+            const response = await fetch('/api/questions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load questions');
+            }
+            
+            const data = await response.json();
+            const questions = data.questions || [];
+            
+            // Generate questions and answers HTML
+            container.innerHTML = generateQuestionsHTML(responseData, questions);
+            
+        } catch (error) {
+            console.error('❌ Error loading questions:', error);
+            container.innerHTML = '<div class="error-message">Error loading questions</div>';
+        }
+    }
+
+    // Function to generate questions HTML
+    function generateQuestionsHTML(responseData, questions) {
+        if (!responseData.answers || responseData.answers.length === 0) {
+            return '<div class="no-data">No responses recorded for this call.</div>';
+        }
+        
+        let html = '';
+        
+        responseData.answers.forEach((answer, index) => {
+            const question = questions[index] || `Question ${index + 1}`;
+            const confidence = responseData.confidences && responseData.confidences[index] 
+                ? (responseData.confidences[index] * 100).toFixed(1) 
+                : 'N/A';
+            
+            const confidenceClass = confidence !== 'N/A' 
+                ? (confidence >= 80 ? 'confidence-high' : confidence >= 60 ? 'confidence-medium' : 'confidence-low')
+                : '';
+            
+            html += `
+                <div class="qa-item">
+                    <div class="qa-question">
+                        Q${index + 1}: ${question}
+                    </div>
+                    <div class="qa-answer">
+                        <strong>Answer:</strong> ${answer || 'No response recorded'}
+                        ${confidence !== 'N/A' ? `<span class="qa-confidence ${confidenceClass}">${confidence}%</span>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        return html;
+    }
+
+    // Function to download response details
+    async function downloadResponseDetails(responseId) {
+        try {
+            console.log(`📥 Downloading response details for ${responseId}...`);
+            
+            const response = await fetch(`/api/download-response-report/${responseId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Download failed');
+            }
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `response_details_${responseId}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            console.log('✅ Response details downloaded successfully');
+            alert('Response details downloaded successfully!');
+        } catch (error) {
+            console.error('❌ Error downloading response details:', error);
+            alert('Failed to download response details: ' + error.message);
+        }
+    }
 });

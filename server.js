@@ -2102,16 +2102,24 @@ app.post('/handle-response', (req, res) => {
 // Individual response download
 app.get('/api/download-response-report/:responseId', authenticateToken, (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Only admins can download response reports' 
-            });
-        }
-
         const responseId = req.params.responseId;
         const responses = loadResponses();
-        const response = responses.find(r => r.id === responseId);
+        const callsData = loadCalls();
+        const usersData = loadUsers();
+        
+        let response;
+        
+        // Handle generated response IDs (format: resp-{callSid}-{index})
+        if (responseId.startsWith('resp-')) {
+            const parts = responseId.split('-');
+            if (parts.length >= 3) {
+                const callSid = parts[1];
+                response = responses.find(r => r.callSid === callSid);
+            }
+        } else {
+            // Try to find by original ID
+            response = responses.find(r => r.id === responseId);
+        }
         
         if (!response) {
             return res.status(404).json({ 
@@ -2120,11 +2128,16 @@ app.get('/api/download-response-report/:responseId', authenticateToken, (req, re
             });
         }
 
-        const callsData = loadCalls();
-        const usersData = loadUsers();
-        const questions = loadQuestions();
-
+        // Check authorization - users can only download their own responses, admins can download any
         const call = callsData.calls.find(c => c.twilio_call_sid === response.callSid);
+        if (req.user.role !== 'admin' && call && call.userId !== req.user.userId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'You can only download your own response reports' 
+            });
+        }
+
+        const questions = loadQuestions();
         const user = usersData.users.find(u => u.id === (call ? call.userId : null));
 
         // Create workbook
@@ -2132,7 +2145,7 @@ app.get('/api/download-response-report/:responseId', authenticateToken, (req, re
         
         // Prepare response summary data
         const summaryData = [{
-            'Response ID': response.id,
+            'Response ID': responseId,
             'Call SID': response.callSid,
             'User Name': user ? user.name : 'N/A',
             'Contact Name': call ? call.name : 'N/A',
