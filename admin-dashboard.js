@@ -740,6 +740,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         responses.forEach(response => {
             const row = document.createElement('tr');
+            // Store the response data in a data attribute
+            const responseData = JSON.stringify(response).replace(/'/g, "&apos;");
             row.innerHTML = `
                 <td>${response.id || 'N/A'}</td>
                 <td>${response.callSid || 'N/A'}</td>
@@ -749,7 +751,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${new Date(response.timestamp || Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
                 <td><span class="status-badge completed">Completed</span></td>
                 <td>
-                    <button class="action-btn view-btn" onclick="openResponseModal(${JSON.stringify(response).replace(/"/g, '&quot;')})" title="View Details">
+                    <button class="action-btn view-btn" data-response='${responseData}' title="View Details">
                         <i class="fas fa-eye"></i>
                     </button>
                     <button class="action-btn download-btn" onclick="downloadResponseReport('${response.id}')" title="Download Report">
@@ -758,6 +760,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
             `;
             tbody.appendChild(row);
+        });
+
+        // Add event listeners for view buttons
+        document.querySelectorAll('#responsesTable .view-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const responseData = JSON.parse(e.currentTarget.dataset.response);
+                openResponseModal(responseData);
+            });
         });
     }
 
@@ -1065,319 +1075,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to delete call');
+                throw new Error('Failed to delete call');
             }
             
-            const data = await response.json();
-            if (data.success) {
-                console.log('✅ Call deleted successfully');
-                alert('Call deleted successfully!');
-                loadCalls(); // Refresh the calls list
-            } else {
-                throw new Error(data.message || 'Failed to delete call');
-            }
-            
+            // Success
+            fetchCalls(); // Refresh the calls list
+            alert('Call deleted successfully!');
         } catch (error) {
             console.error('❌ Error deleting call:', error);
             alert('Failed to delete call: ' + error.message);
         }
     }
-
-    // Schedule call form submission
-    document.getElementById('scheduleForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const contactName = document.getElementById('contactName').value.trim();
-        const phoneNumber = document.getElementById('phoneNumber').value.trim();
-        const scheduledTime = document.getElementById('scheduledTime').value;
-        
-        if (!contactName || !phoneNumber || !scheduledTime) {
-            alert('Please fill in all fields');
-            return;
-        }
-        
-        const isEditMode = this.getAttribute('data-edit-mode') === 'true';
-        const editId = this.getAttribute('data-edit-id');
-        
-        try {
-            const scheduleData = {
-                name: contactName,
-                phone: phoneNumber,
-                time: new Date(scheduledTime).toISOString()
-            };
-            
-            const url = isEditMode ? `/api/calls/${editId}` : '/api/schedule-call';
-            const method = isEditMode ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(scheduleData)
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                alert(isEditMode ? 'Call updated successfully!' : 'Call scheduled successfully!');
-                this.reset();
-                
-                // Reset form mode
-                this.removeAttribute('data-edit-mode');
-                this.removeAttribute('data-edit-id');
-                document.getElementById('scheduleCallBtn').textContent = 'Schedule Call';
-                document.getElementById('scheduleCallBtn').innerHTML = '<i class="fas fa-phone"></i> Schedule Call';
-                
-                loadCalls(); // Refresh the calls list
-            } else {
-                alert(data.message || 'Failed to schedule call');
-            }
-        } catch (error) {
-            console.error('Error scheduling call:', error);
-            alert('Failed to schedule call: ' + error.message);
-        }
-    });
-
-    // Cancel edit function
-    function cancelEdit() {
-        const form = document.getElementById('scheduleForm');
-        const cancelBtn = document.getElementById('cancelEditBtn');
-        
-        // Reset form
-        form.reset();
-        
-        // Reset form mode
-        form.removeAttribute('data-edit-mode');
-        form.removeAttribute('data-edit-id');
-        
-        // Reset button text
-        document.getElementById('scheduleCallBtn').textContent = 'Schedule Call';
-        document.getElementById('scheduleCallBtn').innerHTML = '<i class="fas fa-phone"></i> Schedule Call';
-        
-        // Hide cancel button
-        cancelBtn.style.display = 'none';
-        
-        console.log('✅ Edit mode cancelled');
-    }
-
-    // Event listener for cancel edit button
-    document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
-
-    // Questions Management
-    let questions = [];
-
-    // Load questions
-    async function loadQuestions() {
-        try {
-            console.log('🔍 Loading questions...');
-            console.log('Token:', token ? 'Present' : 'Missing');
-            
-            const response = await fetch('/api/questions', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Response error text:', errorText);
-                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-            }
-            
-            const data = await response.json();
-            console.log('📊 Questions data:', data);
-            
-            if (data.success && data.questions) {
-                questions = data.questions;
-                console.log('✅ Questions loaded successfully:', questions);
-                displayQuestions();
-            } else {
-                console.error('❌ Failed to load questions:', data.message);
-                questions = [];
-                displayQuestions();
-            }
-        } catch (error) {
-            console.error('❌ Error loading questions:', error);
-            console.error('Error details:', error.stack);
-            questions = [];
-            displayQuestions();
-        }
-    }
-
-    // Display questions
-    function displayQuestions() {
-        const questionsList = document.getElementById('questionsList');
-        if (!questionsList) {
-            console.error('❌ Questions list element not found');
-            return;
-        }
-        
-        questionsList.innerHTML = '';
-        
-        if (questions.length === 0) {
-            questionsList.innerHTML = '<div class="no-questions">No questions defined. Add some questions to get started.</div>';
-            return;
-        }
-        
-        questions.forEach((question, index) => {
-            const questionDiv = document.createElement('div');
-            questionDiv.className = 'question-item';
-            questionDiv.innerHTML = `
-                <div class="question-content">
-                    <span class="question-number">${index + 1}.</span>
-                    <input type="text" class="question-input" value="${question}" data-index="${index}" placeholder="Enter question text...">
-                </div>
-                <div class="question-actions">
-                    <button class="action-btn move-up-btn" data-index="${index}" data-direction="up" ${index === 0 ? 'disabled' : ''} title="Move Up">
-                        <i class="fas fa-arrow-up"></i>
-                    </button>
-                    <button class="action-btn move-down-btn" data-index="${index}" data-direction="down" ${index === questions.length - 1 ? 'disabled' : ''} title="Move Down">
-                        <i class="fas fa-arrow-down"></i>
-                    </button>
-                    <button class="action-btn delete-btn" data-index="${index}" title="Delete Question">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            `;
-            questionsList.appendChild(questionDiv);
-        });
-
-        // Add event listeners for the buttons
-        addQuestionEventListeners();
-    }
-
-    // Add event listeners for question actions
-    function addQuestionEventListeners() {
-        // Move up buttons
-        document.querySelectorAll('.move-up-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const index = parseInt(e.currentTarget.dataset.index);
-                moveQuestion(index, 'up');
-            });
-        });
-
-        // Move down buttons
-        document.querySelectorAll('.move-down-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const index = parseInt(e.currentTarget.dataset.index);
-                moveQuestion(index, 'down');
-            });
-        });
-
-        // Delete buttons
-        document.querySelectorAll('.delete-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const index = parseInt(e.currentTarget.dataset.index);
-                deleteQuestion(index);
-            });
-        });
-
-        // Input change listeners
-        document.querySelectorAll('.question-input').forEach(input => {
-            input.addEventListener('input', (e) => {
-                const index = parseInt(e.currentTarget.dataset.index);
-                const value = e.currentTarget.value;
-                questions[index] = value;
-            });
-        });
-    }
-
-    // Add question
-    function addQuestion() {
-        questions.push('New question');
-        displayQuestions();
-        
-        // Focus on the new question input
-        setTimeout(() => {
-            const newQuestionInput = document.querySelector(`[data-index="${questions.length - 1}"]`);
-            if (newQuestionInput) {
-                newQuestionInput.focus();
-                newQuestionInput.select();
-            }
-        }, 100);
-    }
-
-    // Delete question
-    function deleteQuestion(index) {
-        const confirmed = confirm('Are you sure you want to delete this question?');
-        if (confirmed) {
-            questions.splice(index, 1);
-            displayQuestions();
-        }
-    }
-
-    // Move question
-    function moveQuestion(index, direction) {
-        if (direction === 'up' && index > 0) {
-            [questions[index], questions[index - 1]] = [questions[index - 1], questions[index]];
-        } else if (direction === 'down' && index < questions.length - 1) {
-            [questions[index], questions[index + 1]] = [questions[index + 1], questions[index]];
-        }
-        displayQuestions();
-    }
-
-    // Save questions
-    async function saveQuestions() {
-        try {
-            // Get all question inputs
-            const questionInputs = document.querySelectorAll('.question-input');
-            const updatedQuestions = Array.from(questionInputs).map(input => input.value.trim()).filter(q => q !== '');
-            
-            if (updatedQuestions.length === 0) {
-                alert('Please add at least one question before saving.');
-                return;
-            }
-            
-            console.log('💾 Saving questions...');
-            const response = await fetch('/api/questions', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ questions: updatedQuestions })
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to save questions');
-            }
-            
-            const data = await response.json();
-            if (data.success) {
-                console.log('✅ Questions saved successfully');
-                alert('Questions saved successfully!');
-                questions = updatedQuestions;
-            } else {
-                throw new Error(data.message || 'Failed to save questions');
-            }
-            
-        } catch (error) {
-            console.error('❌ Error saving questions:', error);
-            alert('Failed to save questions: ' + error.message);
-        }
-    }
-
-    // Event listeners for questions management
-    const addQuestionBtn = document.getElementById('addQuestionBtn');
-    const saveQuestionsBtn = document.getElementById('saveQuestionsBtn');
-    
-    if (addQuestionBtn) {
-        addQuestionBtn.addEventListener('click', addQuestion);
-    }
-    
-    if (saveQuestionsBtn) {
-        saveQuestionsBtn.addEventListener('click', saveQuestions);
-    }
-
-    // Load questions on page load
-    loadQuestions();
 
     // Make functions globally accessible for onclick handlers
     window.editCall = editCall;
@@ -1406,6 +1114,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Open response modal with data
     const openResponseModal = async (responseData) => {
         try {
+            console.log('🔍 Opening response modal with data:', responseData);
+            
             // Load questions to match with answers
             const questionsResponse = await fetch('/api/questions', {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -1460,9 +1170,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Show modal
             viewResponseModal.style.display = 'flex';
+            console.log('✅ Response modal opened successfully');
         } catch (error) {
-            console.error('Error opening response modal:', error);
+            console.error('❌ Error opening response modal:', error);
             alert('Error loading response details: ' + error.message);
         }
     };
-}); 
+
+    // Download individual response report
+    async function downloadResponseReport(responseId) {
+        try {
+            console.log(`📥 Downloading response report for ${responseId}...`);
+            const response = await fetch(`/api/download-response-report/${responseId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Download failed');
+            }
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `response_report_${responseId}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            console.log('✅ Response report downloaded successfully');
+        } catch (error) {
+            console.error('❌ Error downloading response report:', error);
+            alert('Failed to download response report: ' + error.message);
+        }
+    }
+
+    // Make downloadResponseReport globally accessible
+    window.downloadResponseReport = downloadResponseReport;
+});
