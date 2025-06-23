@@ -463,7 +463,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add event listeners for view buttons
             document.querySelectorAll('.view-btn').forEach(button => {
                 button.addEventListener('click', (e) => {
+                    console.log('🔘 View button clicked');
                     const responseData = JSON.parse(e.currentTarget.dataset.response);
+                    console.log('📊 Parsed response data:', responseData);
+                    console.log('📋 Response answers:', responseData.answers);
                     openResponseModal(responseData);
                 });
             });
@@ -765,7 +768,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add event listeners for view buttons
         document.querySelectorAll('#responsesTable .view-btn').forEach(button => {
             button.addEventListener('click', (e) => {
+                console.log('🔘 View button clicked');
                 const responseData = JSON.parse(e.currentTarget.dataset.response);
+                console.log('📊 Parsed response data:', responseData);
+                console.log('📋 Response answers:', responseData.answers);
                 openResponseModal(responseData);
             });
         });
@@ -1115,6 +1121,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const openResponseModal = async (responseData) => {
         try {
             console.log('🔍 Opening response modal with data:', responseData);
+            console.log('📋 Response answers:', responseData.answers);
+            console.log('📊 Response confidences:', responseData.confidences);
             
             // Load questions to match with answers
             const questionsResponse = await fetch('/api/questions', {
@@ -1122,6 +1130,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const questionsData = await questionsResponse.json();
             const questions = questionsData.questions || [];
+            console.log('❓ Loaded questions:', questions);
 
             // Populate modal with response data
             document.getElementById('responseId').textContent = responseData.id || 'N/A';
@@ -1135,9 +1144,12 @@ document.addEventListener('DOMContentLoaded', () => {
             questionsAnswersList.innerHTML = '';
 
             if (responseData.answers && responseData.answers.length > 0) {
+                console.log('✅ Found answers, populating list...');
                 responseData.answers.forEach((answer, index) => {
                     const question = questions[index] || `Question ${index + 1}`;
                     const confidence = responseData.confidences ? responseData.confidences[index] : null;
+                    
+                    console.log(`📝 Q${index + 1}: ${question} -> A: ${answer} (confidence: ${confidence})`);
                     
                     const qaItem = document.createElement('div');
                     qaItem.className = 'qa-item';
@@ -1160,6 +1172,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     questionsAnswersList.appendChild(qaItem);
                 });
             } else {
+                console.log('❌ No answers found in response data');
                 questionsAnswersList.innerHTML = '<p style="text-align: center; color: #6c757d; padding: 2rem;">No answers recorded for this response.</p>';
             }
 
