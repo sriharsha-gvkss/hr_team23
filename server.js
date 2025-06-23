@@ -1474,17 +1474,32 @@ app.get('/api/responses', authenticateToken, (req, res) => {
         const callsData = loadCalls();
         const usersData = loadUsers();
 
+        console.log('🔍 Raw responses from loadResponses():', responses);
+        console.log('📋 First response object:', responses[0]);
+        console.log('🆔 First response ID:', responses[0]?.id);
+
         // Enhance response data with user and call information
         const enhancedResponses = responses.map(response => {
+            console.log('🔍 Processing response:', response);
+            console.log('🆔 Response ID before enhancement:', response.id);
+            
             const call = callsData.calls.find(c => c.twilio_call_sid === response.callSid);
             const user = usersData.users.find(u => u.id === (call ? call.userId : null));
             
-            return {
+            const enhancedResponse = {
                 ...response,
                 userName: user ? user.name : 'N/A',
                 phone: call ? call.phone : 'N/A'
             };
+            
+            console.log('🆔 Response ID after enhancement:', enhancedResponse.id);
+            console.log('📋 Enhanced response object:', enhancedResponse);
+            
+            return enhancedResponse;
         });
+
+        console.log('📊 Final enhanced responses:', enhancedResponses);
+        console.log('🆔 First enhanced response ID:', enhancedResponses[0]?.id);
 
         res.json({ 
             success: true, 
