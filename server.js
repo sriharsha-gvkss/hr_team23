@@ -946,7 +946,13 @@ app.get('/test-twiml', (req, res) => {
     
     const response = new VoiceResponse();
     
-    if (questionIndex < questions.length) {
+    if (questionIndex === 0) {
+        // First time - greeting
+        response.say('Hello, this is a test call. Please answer the following questions.');
+        response.redirect({ method: 'GET' }, `/test-twiml?questionIndex=1`);
+    } else if (questionIndex <= questions.length) {
+        // Ask the current question
+        const currentQuestionIndex = questionIndex - 1; // Convert to 0-based index
         const gather = response.gather({
             input: 'speech dtmf',
             numDigits: 1,
@@ -956,10 +962,10 @@ app.get('/test-twiml', (req, res) => {
             speechTimeout: 'auto'
         });
         
-        gather.say(`Question ${questionIndex + 1}: ${questions[questionIndex]}`);
+        gather.say(`Question ${questionIndex}: ${questions[currentQuestionIndex]}`);
         
         // If no response, repeat the question
-        response.say(`Question ${questionIndex + 1}: ${questions[questionIndex]}`);
+        response.say(`Question ${questionIndex}: ${questions[currentQuestionIndex]}`);
         response.redirect({ method: 'GET' }, `/test-twiml?questionIndex=${questionIndex}`);
     } else {
         response.say('Thank you for your responses. Goodbye!');
@@ -1009,15 +1015,17 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
             response.say('Hello, this is an automated call. Please answer the following questions.');
             response.redirect({ method: 'POST' }, `/twiml/ask?questionIndex=1`);
         } else if (questionIndex <= questions.length) {
-            // Store response if present and not first question
-            if (digits !== undefined && questionIndex > 0) {
-                callResponse.answers[questionIndex - 1] = digits;
-                callResponse.confidences[questionIndex - 1] = parseFloat(req.body.Confidence) || 0;
+            // Store response from previous question if present
+            if (digits !== undefined && questionIndex > 1) {
+                const previousQuestionIndex = questionIndex - 2; // Convert to 0-based index
+                callResponse.answers[previousQuestionIndex] = digits;
+                callResponse.confidences[previousQuestionIndex] = parseFloat(req.body.Confidence) || 0;
                 saveResponses(responses);
-                console.log(`💾 Stored response for question ${questionIndex - 1}: ${digits}`);
+                console.log(`💾 Stored response for question ${previousQuestionIndex + 1} (${questions[previousQuestionIndex]}): ${digits}`);
             }
             
             // Ask the current question
+            const currentQuestionIndex = questionIndex - 1; // Convert to 0-based index
             const gather = response.gather({
                 input: 'speech dtmf',
                 numDigits: 1,
@@ -1027,13 +1035,22 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 speechTimeout: 'auto'
             });
             
-            gather.say(`Question ${questionIndex}: ${questions[questionIndex - 1]}`);
-            console.log(`❓ Asking question ${questionIndex}: ${questions[questionIndex - 1]}`);
+            gather.say(`Question ${questionIndex}: ${questions[currentQuestionIndex]}`);
+            console.log(`❓ Asking question ${questionIndex}: ${questions[currentQuestionIndex]}`);
             
             // If no response within timeout, move to next question
-            response.say(`Question ${questionIndex}: ${questions[questionIndex - 1]}`);
+            response.say(`Question ${questionIndex}: ${questions[currentQuestionIndex]}`);
             response.redirect({ method: 'POST' }, `/twiml/ask?questionIndex=${questionIndex + 1}`);
         } else {
+            // Store response from the last question
+            if (digits !== undefined) {
+                const lastQuestionIndex = questions.length - 1;
+                callResponse.answers[lastQuestionIndex] = digits;
+                callResponse.confidences[lastQuestionIndex] = parseFloat(req.body.Confidence) || 0;
+                saveResponses(responses);
+                console.log(`💾 Stored final response for question ${lastQuestionIndex + 1} (${questions[lastQuestionIndex]}): ${digits}`);
+            }
+            
             // All questions completed
             response.say('Thank you for your responses. Goodbye!');
             response.hangup();
