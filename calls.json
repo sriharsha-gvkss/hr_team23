@@ -148,7 +148,10 @@
       "phone": "+1234567890",
       "time": "2025-06-23T10:20:00.000Z",
       "created_at": "2025-06-23T10:18:00.000Z",
-      "status": "Pending"
+      "status": "Pending",
+      "failed": true,
+      "failed_at": "2025-06-23T10:20:01.030Z",
+      "error": "The phone number you are attempting to call, +1234567890, is not valid."
     },
     {
       "id": 15,
