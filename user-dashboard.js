@@ -434,9 +434,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('📞 Call SID:', response.callSid);
                 console.log('👤 User ID:', response.userId);
                 
-                // Generate a unique ID for the response since it doesn't have one
-                const responseId = response.id || `resp-${response.callSid}-${index}`;
-                console.log('🆔 Generated Response ID:', responseId);
+                // Use the original response ID instead of generating a new one
+                const responseId = response.id;
+                console.log('🆔 Using Response ID:', responseId);
                 
                 const call = calls.find(c => c.twilio_call_sid === response.callSid);
                 const responseDate = new Date(response.timestamp).toLocaleDateString('en-IN', {
@@ -447,47 +447,64 @@ document.addEventListener('DOMContentLoaded', function() {
                     minute: '2-digit'
                 });
                 
-                const avgConfidence = response.confidences?.length > 0 
+                const avgConfidence = response.confidences && response.confidences.length > 0
                     ? (response.confidences.reduce((a, b) => a + b, 0) / response.confidences.length * 100).toFixed(1)
-                    : 0;
+                    : 'N/A';
                 
-                const confidenceColor = avgConfidence >= 80 ? '#10b981' : avgConfidence >= 60 ? '#f59e0b' : '#ef4444';
-                const confidenceText = avgConfidence >= 80 ? 'High' : avgConfidence >= 60 ? 'Medium' : 'Low';
+                const confidenceColor = avgConfidence !== 'N/A' 
+                    ? (avgConfidence >= 80 ? '#10b981' : avgConfidence >= 60 ? '#f59e0b' : '#ef4444')
+                    : '#6b7280';
                 
-                // Create response data with the generated ID
-                const responseDataWithId = {
-                    ...response,
-                    id: responseId
-                };
-                
-                // Use data attribute approach instead of inline onclick
-                const responseData = JSON.stringify(responseDataWithId).replace(/'/g, "&apos;");
-                console.log('📊 JSON stringified response data:', responseData);
-                
-                html += `
-                    <div style='background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem;'>
-                        <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
-                            <div style='font-weight: 600; color: #374151;'>Response #${index + 1}</div>
-                            <div style='display: flex; align-items: center; gap: 0.5rem;'>
-                                <span style='background: ${confidenceColor}; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600;'>${confidenceText}</span>
-                                <span style='color: #6b7280; font-size: 0.9rem;'>${responseDate}</span>
+                const responseRow = `
+                    <div style="
+                        background: white;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        padding: 1rem;
+                        margin-bottom: 1rem;
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <div style="font-weight: 600; color: #1f2937;">
+                                ${call ? call.name : 'Unknown Contact'}
+                            </div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">
+                                ${responseDate}
                             </div>
                         </div>
-                        <div style='color: #6b7280; font-size: 0.9rem; margin-bottom: 0.5rem;'>
-                            ${call ? `To: ${call.name} (${call.phone})` : 'Call details not available'}
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: center; font-size: 0.875rem;">
+                            <div>
+                                <strong>Questions:</strong> ${response.answers?.length || 0}
+                            </div>
+                            <div>
+                                <strong>Confidence:</strong> 
+                                <span style="color: ${confidenceColor}; font-weight: 600;">
+                                    ${avgConfidence}${avgConfidence !== 'N/A' ? '%' : ''}
+                                </span>
+                            </div>
+                            <div>
+                                <strong>Status:</strong> 
+                                <span style="color: #10b981; font-weight: 600;">Completed</span>
+                            </div>
+                            <button class="view-response-btn" 
+                                data-response='${JSON.stringify(response)}'
+                                style="
+                                    background: #667eea;
+                                    color: white;
+                                    border: none;
+                                    padding: 0.5rem 1rem;
+                                    border-radius: 6px;
+                                    font-size: 0.875rem;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                ">
+                                View Details
+                            </button>
                         </div>
-                        <div style='font-size: 0.9rem; color: #374151;'>
-                            <strong>Questions Answered:</strong> ${response.answers?.length || 0}
-                        </div>
-                        <button class="view-response-btn" data-response='${responseData}' style='
-                            background: #667eea; color: white; border: none; padding: 0.5rem 1rem; 
-                            border-radius: 6px; font-size: 0.9rem; cursor: pointer; margin-top: 0.5rem;
-                            display: flex; align-items: center; gap: 0.3rem;
-                        '>
-                            <i class="fas fa-eye"></i> View Details
-                        </button>
                     </div>
                 `;
+                
+                responsesContainer.innerHTML += responseRow;
             });
             
             html += `
@@ -555,14 +572,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (!responseData.id) {
                         console.error('❌ Response ID is missing or undefined');
-                        showNotification('Error: Response ID not found. Please try again.', 'error');
+                        showNotification('Response ID is missing. Please try again.', 'error');
                         return;
                     }
                     
                     viewResponseDetails(responseData.id);
                 } catch (error) {
                     console.error('❌ Error parsing response data:', error);
-                    showNotification('Error parsing response data. Please try again.', 'error');
+                    showNotification('Error loading response data. Please try again.', 'error');
                 }
             });
         });

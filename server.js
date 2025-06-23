@@ -1509,19 +1509,21 @@ app.get('/api/responses/:responseId', authenticateToken, (req, res) => {
 
         let response;
         
-        // Handle generated response IDs (format: resp-{callSid}-{index})
-        if (responseId.startsWith('resp-')) {
+        // First, try to find by original ID
+        response = responses.find(r => r.id === responseId);
+        
+        // If not found and it's a generated ID (format: resp-{callSid}-{index})
+        if (!response && responseId.startsWith('resp-')) {
             const parts = responseId.split('-');
             if (parts.length >= 3) {
                 const callSid = parts[1];
                 response = responses.find(r => r.callSid === callSid);
             }
-        } else {
-            // Try to find by original ID
-            response = responses.find(r => r.id === responseId);
         }
 
         if (!response) {
+            console.log(`❌ Response not found for ID: ${responseId}`);
+            console.log(`📋 Available response IDs:`, responses.map(r => r.id));
             return res.status(404).json({ 
                 success: false, 
                 message: 'Response not found' 
@@ -2109,19 +2111,21 @@ app.get('/api/download-response-report/:responseId', authenticateToken, (req, re
         
         let response;
         
-        // Handle generated response IDs (format: resp-{callSid}-{index})
-        if (responseId.startsWith('resp-')) {
+        // First, try to find by original ID
+        response = responses.find(r => r.id === responseId);
+        
+        // If not found and it's a generated ID (format: resp-{callSid}-{index})
+        if (!response && responseId.startsWith('resp-')) {
             const parts = responseId.split('-');
             if (parts.length >= 3) {
                 const callSid = parts[1];
                 response = responses.find(r => r.callSid === callSid);
             }
-        } else {
-            // Try to find by original ID
-            response = responses.find(r => r.id === responseId);
         }
         
         if (!response) {
+            console.log(`❌ Response not found for download ID: ${responseId}`);
+            console.log(`📋 Available response IDs:`, responses.map(r => r.id));
             return res.status(404).json({ 
                 success: false, 
                 message: 'Response not found' 
