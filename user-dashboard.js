@@ -324,8 +324,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 const responsesData = await responsesResponse.json();
                 const callsData = await callsResponse.json();
 
+                console.log('📊 Raw responses data from API:', responsesData);
+                console.log('📞 Raw calls data from API:', callsData);
+
                 if (responsesResponse.ok && callsResponse.ok) {
-                    renderUserReports(responsesData.responses || [], callsData.calls || []);
+                    const responses = responsesData.responses || [];
+                    const calls = callsData.calls || [];
+                    
+                    console.log('🔍 Processed responses array:', responses);
+                    console.log('📞 Processed calls array:', calls);
+                    
+                    // Debug each response object
+                    responses.forEach((response, index) => {
+                        console.log(`🔍 Response ${index}:`, {
+                            id: response.id,
+                            callSid: response.callSid,
+                            userId: response.userId,
+                            hasId: 'id' in response,
+                            idType: typeof response.id
+                        });
+                    });
+                    
+                    renderUserReports(responses, calls);
                 } else {
                     infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-file-alt'></i> Report</div><div class='info-box-content'>Failed to load reports. Please try again.</div>`;
                 }
@@ -433,10 +453,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('📋 Response ID:', response.id);
                 console.log('📞 Call SID:', response.callSid);
                 console.log('👤 User ID:', response.userId);
+                console.log('🔍 Response object keys:', Object.keys(response));
+                console.log('🔍 Response object values:', Object.values(response));
                 
                 // Use the original response ID instead of generating a new one
                 const responseId = response.id;
                 console.log('🆔 Using Response ID:', responseId);
+                console.log('🆔 Response ID type:', typeof responseId);
+                console.log('🆔 Response ID === undefined:', responseId === undefined);
+                console.log('🆔 Response ID === null:', responseId === null);
+                
+                if (!responseId) {
+                    console.error('❌ Response ID is missing! Response object:', response);
+                }
                 
                 const call = calls.find(c => c.twilio_call_sid === response.callSid);
                 const responseDate = new Date(response.timestamp).toLocaleDateString('en-IN', {
