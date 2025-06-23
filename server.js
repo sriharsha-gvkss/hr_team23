@@ -999,13 +999,24 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
         
         let callResponse = responses.find(r => r.callSid === callSid);
         if (!callResponse) {
+            // Generate a unique ID for the new response
+            const responseId = `resp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            // Get the call to find the userId
+            const callsData = loadCalls();
+            const call = callsData.calls.find(c => c.twilio_call_sid === callSid);
+            const userId = call ? call.userId : null;
+            
             callResponse = { 
-                callSid, 
+                id: responseId,
+                callSid,
+                userId,
                 answers: new Array(questions.length).fill(''), 
                 confidences: new Array(questions.length).fill(0),
                 timestamp: new Date().toISOString() 
             };
             responses.push(callResponse);
+            console.log(`🆔 Created new response with ID: ${responseId} for call: ${callSid}, userId: ${userId}`);
         }
         
         const response = new VoiceResponse();
