@@ -527,9 +527,201 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Function to view response details (placeholder - can be expanded)
-    function viewResponseDetails(responseId) {
-        showNotification('Response details feature coming soon!', 'info');
+    // Function to view response details with proper modal implementation
+    async function viewResponseDetails(responseId) {
+        try {
+            console.log('🔍 Fetching response details for:', responseId);
+            
+            // Fetch the specific response details
+            const response = await fetch(`/api/responses/${responseId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch response details');
+            }
+            
+            const data = await response.json();
+            console.log('📊 Response data:', data);
+            
+            if (!data.success || !data.response) {
+                throw new Error('Invalid response data');
+            }
+            
+            const responseData = data.response;
+            
+            // Load questions to match with answers
+            const questionsResponse = await fetch('/api/questions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const questionsData = await questionsResponse.json();
+            const questions = questionsData.questions || [];
+            
+            // Create and show modal
+            showResponseDetailsModal(responseData, questions);
+            
+        } catch (error) {
+            console.error('Error fetching response details:', error);
+            showNotification('Failed to load response details. Please try again.', 'error');
+        }
+    }
+
+    // Function to show response details modal
+    function showResponseDetailsModal(responseData, questions) {
+        // Remove existing modal if any
+        const existingModal = document.getElementById('userResponseModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Create modal HTML
+        const modalHTML = `
+            <div id="userResponseModal" class="modal-overlay" style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            ">
+                <div class="modal-content" style="
+                    background: white;
+                    padding: 2rem;
+                    border-radius: 12px;
+                    max-width: 600px;
+                    width: 90%;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h2 style="margin: 0; color: #1f2937; font-size: 1.5rem;">
+                            <i class="fas fa-eye" style="color: #667eea; margin-right: 0.5rem;"></i>
+                            Call Response Details
+                        </h2>
+                        <button id="closeUserResponseModal" style="
+                            background: none;
+                            border: none;
+                            font-size: 1.5rem;
+                            cursor: pointer;
+                            color: #6b7280;
+                        ">&times;</button>
+                    </div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem;">
+                                <div>
+                                    <strong>Response ID:</strong> ${responseData.id || 'N/A'}
+                                </div>
+                                <div>
+                                    <strong>Call SID:</strong> ${responseData.callSid || 'N/A'}
+                                </div>
+                                <div>
+                                    <strong>Date:</strong> ${new Date(responseData.timestamp).toLocaleString('en-IN')}
+                                </div>
+                                <div>
+                                    <strong>Questions Answered:</strong> ${responseData.answers?.length || 0}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="responseQuestionsList">
+                        ${generateQuestionsHTML(responseData, questions)}
+                    </div>
+                    
+                    <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+                        <button id="closeUserResponseModalBtn" style="
+                            background: #6b7280;
+                            color: white;
+                            border: none;
+                            padding: 0.75rem 1.5rem;
+                            border-radius: 8px;
+                            font-size: 1rem;
+                            font-weight: 600;
+                            cursor: pointer;
+                        ">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Add event listeners
+        document.getElementById('closeUserResponseModal').addEventListener('click', closeUserResponseModal);
+        document.getElementById('closeUserResponseModalBtn').addEventListener('click', closeUserResponseModal);
+        
+        // Close modal when clicking outside
+        document.getElementById('userResponseModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeUserResponseModal();
+            }
+        });
+    }
+
+    // Function to generate questions HTML
+    function generateQuestionsHTML(responseData, questions) {
+        if (!responseData.answers || responseData.answers.length === 0) {
+            return '<div style="text-align: center; color: #6b7280; padding: 2rem;">No responses recorded for this call.</div>';
+        }
+        
+        let html = '<h3 style="margin: 0 0 1rem 0; color: #1f2937;">Questions & Answers</h3>';
+        
+        responseData.answers.forEach((answer, index) => {
+            const question = questions[index] || `Question ${index + 1}`;
+            const confidence = responseData.confidences && responseData.confidences[index] 
+                ? (responseData.confidences[index] * 100).toFixed(1) 
+                : 'N/A';
+            
+            const confidenceColor = confidence !== 'N/A' 
+                ? (confidence >= 80 ? '#10b981' : confidence >= 60 ? '#f59e0b' : '#ef4444')
+                : '#6b7280';
+            
+            html += `
+                <div style="
+                    background: #f9fafb;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 8px;
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                ">
+                    <div style="margin-bottom: 0.5rem;">
+                        <strong style="color: #374151;">Q${index + 1}:</strong> ${question}
+                    </div>
+                    <div style="margin-bottom: 0.5rem;">
+                        <strong style="color: #374151;">Answer:</strong> 
+                        <span style="color: #6b7280;">${answer || 'No response recorded'}</span>
+                    </div>
+                    <div>
+                        <strong style="color: #374151;">Confidence:</strong> 
+                        <span style="color: ${confidenceColor}; font-weight: 600;">
+                            ${confidence}${confidence !== 'N/A' ? '%' : ''}
+                        </span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        return html;
+    }
+
+    // Function to close response modal
+    function closeUserResponseModal() {
+        const modal = document.getElementById('userResponseModal');
+        if (modal) {
+            modal.remove();
+        }
     }
 
     // Function to load all responses (placeholder - can be expanded)
