@@ -528,13 +528,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.downloadResponseReport = async (responseId) => {
+    // Download individual response report
+    async function downloadResponseReport(responseId) {
         try {
+            console.log(`📥 Downloading response report for ${responseId}...`);
             const response = await fetch(`/api/download-response-report/${responseId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
             
-            if (!response.ok) throw new Error('Failed to download response report');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Download failed');
+            }
             
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -545,10 +552,13 @@ document.addEventListener('DOMContentLoaded', () => {
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
+            
+            console.log('✅ Response report downloaded successfully');
         } catch (error) {
-            alert(`Error downloading response report: ${error.message}`);
+            console.error('❌ Error downloading response report:', error);
+            alert('Failed to download response report: ' + error.message);
         }
-    };
+    }
 
     // Download all reports button
     const downloadAllReportsBtn = document.getElementById('downloadAllReportsBtn');
@@ -739,6 +749,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${new Date(response.timestamp || Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
                 <td><span class="status-badge completed">Completed</span></td>
                 <td>
+                    <button class="action-btn view-btn" onclick="openResponseModal(${JSON.stringify(response).replace(/"/g, '&quot;')})" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
                     <button class="action-btn download-btn" onclick="downloadResponseReport('${response.id}')" title="Download Report">
                         <i class="fas fa-download"></i>
                     </button>
@@ -1371,6 +1384,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteCall = deleteCall;
     window.triggerCall = triggerCall;
     window.downloadCallReport = downloadCallReport;
+    window.openResponseModal = openResponseModal;
 
     // --- Response Modal Logic ---
     const viewResponseModal = document.getElementById('viewResponseModal');
