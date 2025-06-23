@@ -356,12 +356,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Helper to render user reports with responses
     function renderUserReports(responses, calls) {
         const userId = getCurrentUserId();
+        console.log('🔍 Current user ID:', userId);
+        console.log('📊 All responses:', responses);
+        console.log('📞 All calls:', calls);
+        
         const userResponses = responses.filter(r => {
             const call = calls.find(c => c.twilio_call_sid === r.callSid);
-            return call && call.userId === userId;
+            const isUserResponse = call && call.userId === userId;
+            console.log(`🔍 Response ${r.id}: callSid=${r.callSid}, call.userId=${call?.userId}, isUserResponse=${isUserResponse}`);
+            return isUserResponse;
         });
         
+        console.log('👤 Filtered user responses:', userResponses);
+        
         const userCalls = calls.filter(c => c.userId === userId);
+        console.log('📞 User calls:', userCalls);
         
         if (userResponses.length === 0 && userCalls.length === 0) {
             infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-file-alt'></i> Report</div><div class='info-box-content'>
@@ -423,6 +432,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('🔍 Processing response:', response);
                 console.log('📋 Response ID:', response.id);
                 console.log('📞 Call SID:', response.callSid);
+                console.log('👤 User ID:', response.userId);
                 
                 const call = calls.find(c => c.twilio_call_sid === response.callSid);
                 const responseDate = new Date(response.timestamp).toLocaleDateString('en-IN', {
@@ -442,6 +452,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Use data attribute approach instead of inline onclick
                 const responseData = JSON.stringify(response).replace(/'/g, "&apos;");
+                console.log('📊 JSON stringified response data:', responseData);
                 
                 html += `
                     <div style='background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem;'>
@@ -523,10 +534,26 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.view-response-btn').forEach(button => {
             button.addEventListener('click', (e) => {
                 console.log('🔘 View button clicked');
-                const responseData = JSON.parse(e.currentTarget.dataset.response);
-                console.log('📊 Parsed response data:', responseData);
-                console.log('📋 Response ID:', responseData.id);
-                viewResponseDetails(responseData.id);
+                console.log('🔍 Button dataset:', e.currentTarget.dataset);
+                console.log('📋 Raw response data:', e.currentTarget.dataset.response);
+                
+                try {
+                    const responseData = JSON.parse(e.currentTarget.dataset.response);
+                    console.log('📊 Parsed response data:', responseData);
+                    console.log('📋 Response ID:', responseData.id);
+                    console.log('📋 Response ID type:', typeof responseData.id);
+                    
+                    if (!responseData.id) {
+                        console.error('❌ Response ID is missing or undefined');
+                        showNotification('Error: Response ID not found. Please try again.', 'error');
+                        return;
+                    }
+                    
+                    viewResponseDetails(responseData.id);
+                } catch (error) {
+                    console.error('❌ Error parsing response data:', error);
+                    showNotification('Error parsing response data. Please try again.', 'error');
+                }
             });
         });
     }
@@ -549,6 +576,14 @@ document.addEventListener('DOMContentLoaded', function() {
     async function viewResponseDetails(responseId) {
         try {
             console.log('🔍 Fetching response details for:', responseId);
+            console.log('📋 Response ID type:', typeof responseId);
+            
+            // Validate responseId
+            if (!responseId || responseId === 'undefined' || responseId === 'null') {
+                console.error('❌ Invalid response ID:', responseId);
+                showNotification('Invalid response ID. Please try again.', 'error');
+                return;
+            }
             
             // Fetch the specific response details
             const response = await fetch(`/api/responses/${responseId}`, {
