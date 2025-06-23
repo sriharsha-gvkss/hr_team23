@@ -88,12 +88,20 @@ const ***REMOVED*** = process.env.***REMOVED***;
 
 // Initialize Twilio client only if credentials are available
 let twilioClient = null;
-if (***REMOVED*** && ***REMOVED***) {
-    twilioClient = twilio(***REMOVED***, ***REMOVED***);
-    console.log('Twilio client initialized successfully');
+if (***REMOVED*** && ***REMOVED*** && ***REMOVED***) {
+    if (***REMOVED*** === 'your_twilio_account_sid_here' || 
+        ***REMOVED*** === 'your_twilio_auth_token_here' || 
+        ***REMOVED*** === 'your_twilio_phone_number_here') {
+        console.warn('⚠️  Twilio credentials are placeholder values. Real calls will not be made.');
+        console.warn('📝 Please update your .env file with real Twilio credentials from https://console.twilio.com/');
+    } else {
+        twilioClient = twilio(***REMOVED***, ***REMOVED***);
+        console.log('✅ Twilio client initialized successfully with real credentials');
+    }
 } else {
-    console.warn('Twilio credentials not found. Call functionality will be disabled.');
-    console.warn('Please set ***REMOVED***, ***REMOVED***, and ***REMOVED*** environment variables.');
+    console.warn('⚠️  Twilio credentials not found. Call functionality will be disabled.');
+    console.warn('📝 Please set ***REMOVED***, ***REMOVED***, and ***REMOVED*** environment variables.');
+    console.warn('🔗 Get credentials from: https://console.twilio.com/');
 }
 
 // Add questions file and functions
