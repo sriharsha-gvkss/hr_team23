@@ -260,10 +260,10 @@ class CallScheduler {
                 }
                 
                 // Check if it's already in ISO format (UTC)
-                if (timeString.includes('T') && timeString.includes('Z')) {
+                if (timeString && timeString.includes && timeString.includes('T') && timeString.includes('Z')) {
                     // It's already in UTC, convert to IST
                     callTime = new Date(timeString);
-                } else {
+                } else if (timeString && timeString.includes && timeString.includes('T')) {
                     // It's a local time string, treat it as IST
                     // Create a date object in IST
                     const [datePart, timePart] = timeString.split('T');
@@ -276,6 +276,9 @@ class CallScheduler {
                     
                     // Create date in IST (UTC+5:30)
                     callTime = new Date(Date.UTC(year, month - 1, day, hour, minute) - (5.5 * 60 * 60 * 1000));
+                } else {
+                    console.error(`❌ Unsupported time format for call ${callData.id}:`, timeString);
+                    return null;
                 }
             }
             
@@ -414,13 +417,16 @@ class CallScheduler {
                 callTime = timeField;
             } else {
                 const timeString = timeField;
-                if (timeString.includes('T') && timeString.includes('Z')) {
+                if (timeString && timeString.includes && timeString.includes('T') && timeString.includes('Z')) {
                     callTime = new Date(timeString);
-                } else {
+                } else if (timeString && timeString.includes && timeString.includes('T')) {
                     const [datePart, timePart] = timeString.split('T');
                     const [year, month, day] = datePart.split('-').map(Number);
                     const [hour, minute] = timePart.split(':').map(Number);
                     callTime = new Date(Date.UTC(year, month - 1, day, hour, minute) - (5.5 * 60 * 60 * 1000));
+                } else {
+                    console.error(`❌ Unsupported time format for call ${call.id}:`, timeString);
+                    continue; // Skip this call and continue with the next one
                 }
             }
             
