@@ -1149,6 +1149,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const name = document.getElementById('directCallName').value.trim();
         const phone = document.getElementById('directCallPhone').value.trim();
+        const company = getCurrentCompanyName();
         
         if (!name || !phone) {
             showNotification('Please fill in all fields', 'error');
@@ -1163,7 +1164,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ name, phone })
+                body: JSON.stringify({ name, company, phone })
             });
             
             const data = await response.json();
@@ -1410,6 +1411,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const name = document.getElementById('editCallName').value.trim();
         const phone = document.getElementById('editCallPhone').value.trim();
         const time = document.getElementById('editCallTime').value;
+        const company = getCurrentCompanyName();
         
         if (!name || !phone || !time) {
             showNotification('Please fill in all fields', 'error');
@@ -1423,7 +1425,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ name, phone, time })
+                body: JSON.stringify({ name, company, phone, time })
             });
             
             const data = await response.json();
@@ -1588,8 +1590,201 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Initialize dashboard
-    await refreshUserProfile();
-    initializeCompanySection();
-    
-    // Add event listeners to stat cards
+    async function initializeDashboard() {
+        await refreshUserProfile();
+        initializeCompanySection();
+        
+        // Add event listeners to stat cards
+        if (statCards[0]) statCards[0].addEventListener('click', () => {
+            // Scheduling Call logic
+            infoBox.innerHTML = `
+                <div class='info-box-title'><i class='fas fa-calendar-plus'></i> Scheduling Call</div>
+                <div class='info-box-content'>
+                    <form id="scheduleCallForm" class="schedule-call-form">
+                        <div style="margin-bottom: 1rem;">
+                            <label for="callName">Name</label><br>
+                            <input type="text" id="callName" name="callName" required style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 0.25rem;">
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label for="callPhone">Phone Number</label><br>
+                            <input type="tel" id="callPhone" name="callPhone" required pattern="[0-9\\-\\+\\s\\(\\)]{7,}" style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 0.25rem;">
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label for="callTime">Time</label><br>
+                            <input type="datetime-local" id="callTime" name="callTime" required style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 0.25rem;">
+                        </div>
+                        <button type="submit" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 0.75rem 2rem; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;">Schedule</button>
+                    </form>
+                </div>
+            `;
+            // Add form submit handler
+            const scheduleForm = document.getElementById('scheduleCallForm');
+            if (scheduleForm) {
+                scheduleForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const name = document.getElementById('callName').value.trim();
+                    const phone = document.getElementById('callPhone').value.trim();
+                    const time = document.getElementById('callTime').value;
+                    const company = getCurrentCompanyName();
+                    if (!name || !phone || !time) {
+                        showNotification('Please fill in all fields', 'error');
+                        return;
+                    }
+                    try {
+                        const response = await fetch('/api/schedule-call', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ name, company, phone, time })
+                        });
+                        const data = await response.json();
+                        if (response.ok && data.success) {
+                            showNotification('Call scheduled successfully!', 'success');
+                            scheduleForm.reset();
+                        } else {
+                            showNotification(data.message || 'Failed to schedule call', 'error');
+                        }
+                    } catch (err) {
+                        showNotification('Network error. Please try again.', 'error');
+                    }
+                });
+            }
+        });
+        if (statCards[1]) statCards[1].addEventListener('click', async () => {
+            // Scheduled Calls logic
+            infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-calendar-check'></i> Scheduled Calls</div><div class='info-box-content'>Loading your scheduled calls...</div>`;
+            try {
+                const response = await fetch('/api/scheduled-calls', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    if (data.calls.length === 0) {
+                        infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-calendar-check'></i> Scheduled Calls</div><div class='info-box-content'>You have no scheduled calls.</div>`;
+                    } else {
+                        const callsList = data.calls.map(call => {
+                            // Format the time for display (IST) - use scheduledTime field
+                            const timeField = call.scheduledTime || call.time;
+                            const callTime = new Date(timeField);
+                            const formattedTime = callTime.toLocaleString('en-IN', { 
+                                timeZone: 'Asia/Kolkata',
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                            
+                            // Use status field instead of completed/failed
+                            const status = call.status || 'Pending';
+                            const statusClass = status === 'completed' ? 'completed' : status === 'failed' ? 'failed' : 'pending';
+                            
+                            // Action buttons - show delete for all calls, but edit/trigger only for pending calls
+                            const actionButtons = status !== 'completed' && status !== 'failed' ? `
+                                <div class="scheduled-call-actions">
+                                    <button onclick="editUserCall(${call.id})" class="edit-btn" title="Edit Call">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button onclick="deleteUserCall(${call.id})" class="delete-btn" title="Delete Call">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                    <button onclick="triggerCall(${call.id})" class="trigger-btn" title="Trigger Now">
+                                        <i class="fas fa-play"></i> Trigger Now
+                                    </button>
+                                </div>
+                            ` : `
+                                <div class="scheduled-call-actions">
+                                    <button onclick="deleteUserCall(${call.id})" class="delete-btn" title="Delete Call">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            `;
+                            
+                            return `<li style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 8px;">
+                                <strong>${call.name}</strong>${call.company ? ` (${call.company})` : ''} (${call.phone})<br>
+                                ${formattedTime}<br>
+                                Status: <span class="status-badge ${statusClass}">${status}</span>
+                                ${actionButtons}
+                            </li>`;
+                        }).join('');
+                        infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-calendar-check'></i> Scheduled Calls</div><div class='info-box-content'><ul style="list-style: none; padding: 0;">${callsList}</ul></div>`;
+                    }
+                } else {
+                    infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-calendar-check'></i> Scheduled Calls</div><div class='info-box-content'>Failed to load scheduled calls.</div>`;
+                }
+            } catch (err) {
+                infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-calendar-check'></i> Scheduled Calls</div><div class='info-box-content'>Network error. Please try again.</div>`;
+            }
+        });
+        if (statCards[2]) statCards[2].addEventListener('click', async () => {
+            // Report logic - Show user's actual reports
+            infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-file-alt'></i> Report</div><div class='info-box-content'>Loading your reports...</div>`;
+            
+            try {
+                // Fetch user's responses and calls data
+                const [responsesResponse, callsResponse] = await Promise.all([
+                    fetch('/api/responses', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch('/api/calls', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+
+                const responsesData = await responsesResponse.json();
+                const callsData = await callsResponse.json();
+
+                console.log('📊 Raw responses data from API:', responsesData);
+                console.log('📞 Raw calls data from API:', callsData);
+
+                if (responsesResponse.ok && callsResponse.ok) {
+                    const responses = responsesData.responses || [];
+                    const calls = callsData.calls || [];
+                    
+                    console.log('🔍 Processed responses array:', responses);
+                    console.log('📞 Processed calls array:', calls);
+                    
+                    // Debug each response object
+                    responses.forEach((response, index) => {
+                        console.log(`🔍 Response ${index}:`, {
+                            id: response.id,
+                            callSid: response.callSid,
+                            userId: response.userId,
+                            hasId: 'id' in response,
+                            idType: typeof response.id
+                        });
+                    });
+                    
+                    renderUserReports(responses, calls);
+                } else {
+                    infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-file-alt'></i> Report</div><div class='info-box-content'>Failed to load reports. Please try again.</div>`;
+                }
+            } catch (err) {
+                console.error('Error loading reports:', err);
+                infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-file-alt'></i> Report</div><div class='info-box-content'>Network error. Please try again.</div>`;
+            }
+        });
+        if (statCards[3]) statCards[3].addEventListener('click', async () => {
+            // Manage Questions logic
+            infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-question'></i> Manage Questions</div><div class='info-box-content'>Loading questions...</div>`;
+            try {
+                const response = await fetch('/api/questions', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    renderQuestionsBox(data.questions);
+                } else {
+                    infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-question'></i> Manage Questions</div><div class='info-box-content'>Failed to load questions.</div>`;
+                }
+            } catch (err) {
+                infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-question'></i> Manage Questions</div><div class='info-box-content'>Network error. Please try again.</div>`;
+            }
+        });
+    }
+
+    // Start the dashboard initialization
+    initializeDashboard();
 }); 
