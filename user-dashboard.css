@@ -726,6 +726,15 @@ body {
     background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
 }
 
+.scheduled-call-actions .download-word-btn {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+}
+
+.scheduled-call-actions .download-word-btn:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+
 /* Status badges for calls */
 .status-badge {
     padding: 0.25rem 0.5rem;

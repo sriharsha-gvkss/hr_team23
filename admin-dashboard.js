@@ -1011,6 +1011,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="action-btn download-btn" onclick="downloadCallReport('${call.id}')" title="Download Report">
                         <i class="fas fa-download"></i>
                     </button>
+                    <button class="action-btn word-btn" onclick="downloadCallWord('${call.id}')" title="Download Word Report">
+                        <i class="fas fa-file-word"></i>
+                    </button>
                 </td>
             `;
             tbody.appendChild(row);
@@ -1147,6 +1150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteCall = deleteCall;
     window.triggerCall = triggerCall;
     window.downloadCallReport = downloadCallReport;
+    window.downloadCallWord = downloadCallWord;
     window.openResponseModal = openResponseModal;
 
     // Function to open response details modal
@@ -1286,6 +1290,51 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('❌ Error downloading response details:', error);
             alert('Failed to download response details: ' + error.message);
+        }
+    }
+
+    // Function to download call as Word document
+    async function downloadCallWord(callId) {
+        try {
+            console.log('📄 Downloading Word document for call:', callId);
+            
+            const response = await fetch(`/api/calls/${callId}/export-word`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to download Word document');
+            }
+            
+            // Get the filename from the response headers
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = `call_report_${callId}.docx`;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+            
+            // Create blob and download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            alert('Word document downloaded successfully!');
+            
+        } catch (error) {
+            console.error('Error downloading Word document:', error);
+            alert('Failed to download Word document: ' + error.message);
         }
     }
 });

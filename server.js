@@ -8,6 +8,7 @@ const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 const { twiml: { VoiceResponse } } = require('twilio');
 const XLSX = require('xlsx');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = require('docx');
 require('dotenv').config();
 
 const app = express();
@@ -2308,6 +2309,211 @@ app.get('/api/download-response-report/:responseId', authenticateToken, (req, re
         res.status(500).json({ 
             success: false, 
             message: 'Failed to generate response report: ' + error.message 
+        });
+    }
+});
+
+// Export call to Word document
+app.get('/api/calls/:callId/export-word', authenticateToken, async (req, res) => {
+    try {
+        const callId = req.params.callId;
+        const callsData = loadCalls();
+        const call = callsData.calls.find(c => c.id == callId);
+        
+        if (!call) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Call not found' 
+            });
+        }
+
+        // Allow users to export their own calls or admins to export any call
+        if (req.user.role !== 'admin' && call.userId !== req.user.userId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'You can only export your own calls' 
+            });
+        }
+
+        const usersData = loadUsers();
+        const user = usersData.users.find(u => u.id === call.userId);
+        const responses = loadResponses();
+        const questions = loadQuestions();
+        
+        // Find response for this call
+        const response = responses.find(r => r.callSid === call.twilio_call_sid);
+
+        // Create Word document
+        const doc = new Document({
+            sections: [{
+                properties: {},
+                children: [
+                    // Title
+                    new Paragraph({
+                        text: "Call Report",
+                        heading: HeadingLevel.HEADING_1,
+                        alignment: AlignmentType.CENTER,
+                        spacing: {
+                            after: 400
+                        }
+                    }),
+                    
+                    // Call Details Section
+                    new Paragraph({
+                        text: "Call Details",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: {
+                            before: 400,
+                            after: 200
+                        }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Call ID: ", bold: true }),
+                            new TextRun({ text: call.id })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Contact Name: ", bold: true }),
+                            new TextRun({ text: call.name || 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Company: ", bold: true }),
+                            new TextRun({ text: call.company || 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Phone Number: ", bold: true }),
+                            new TextRun({ text: call.phone || 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Scheduled Time: ", bold: true }),
+                            new TextRun({ text: call.scheduledTime ? 
+                                new Date(call.scheduledTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Status: ", bold: true }),
+                            new TextRun({ text: call.status || 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Created By: ", bold: true }),
+                            new TextRun({ text: user ? user.name : 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Created At: ", bold: true }),
+                            new TextRun({ text: call.created_at ? 
+                                new Date(call.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A' })
+                        ],
+                        spacing: { after: 400 }
+                    }),
+                    
+                    // Questions and Answers Section
+                    new Paragraph({
+                        text: "Questions and Answers",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: {
+                            before: 400,
+                            after: 200
+                        }
+                    })
+                ]
+            }]
+        });
+
+        // Add questions and answers if response exists
+        if (response && response.answers && response.answers.length > 0) {
+            response.answers.forEach((answer, index) => {
+                const question = questions[index] || `Question ${index + 1}`;
+                const confidence = response.confidences ? response.confidences[index] : null;
+                
+                doc.addSection({
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: `Q${index + 1}: `, bold: true }),
+                                new TextRun({ text: question })
+                            ],
+                            spacing: { after: 100 }
+                        }),
+                        
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: `A${index + 1}: `, bold: true }),
+                                new TextRun({ text: answer || 'No response' })
+                            ],
+                            spacing: { after: 100 }
+                        }),
+                        
+                        ...(confidence ? [
+                            new Paragraph({
+                                children: [
+                                    new TextRun({ text: "Confidence: ", bold: true }),
+                                    new TextRun({ text: `${(confidence * 100).toFixed(2)}%` })
+                                ],
+                                spacing: { after: 200 }
+                            })
+                        ] : [
+                            new Paragraph({
+                                spacing: { after: 200 }
+                            })
+                        ])
+                    ]
+                });
+            });
+        } else {
+            // No responses available
+            doc.addSection({
+                children: [
+                    new Paragraph({
+                        text: "No responses available for this call.",
+                        spacing: { after: 200 }
+                    })
+                ]
+            });
+        }
+
+        // Generate document buffer
+        const buffer = await Packer.toBuffer(doc);
+        
+        // Set response headers
+        const filename = `call_report_${callId}.docx`;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        
+        res.send(buffer);
+
+    } catch (error) {
+        console.error('Error generating Word document:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to generate Word document: ' + error.message 
         });
     }
 });

@@ -303,11 +303,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <button onclick="triggerCall(${call.id})" class="trigger-btn" title="Trigger Now">
                                         <i class="fas fa-play"></i> Trigger Now
                                     </button>
+                                    <button onclick="downloadCallWord(${call.id})" class="download-word-btn" title="Download Word Report">
+                                        <i class="fas fa-file-word"></i> Word
+                                    </button>
                                 </div>
                             ` : `
                                 <div class="scheduled-call-actions">
                                     <button onclick="deleteUserCall(${call.id})" class="delete-btn" title="Delete Call">
                                         <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                    <button onclick="downloadCallWord(${call.id})" class="download-word-btn" title="Download Word Report">
+                                        <i class="fas fa-file-word"></i> Word
                                     </button>
                                 </div>
                             `;
@@ -1439,6 +1445,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 showNotification(data.message || 'Failed to update call', 'error');
             }
         } catch (err) {
+            console.error('Error updating call:', err);
             showNotification('Network error. Please try again.', 'error');
         }
     }
@@ -1693,11 +1700,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <button onclick="triggerCall(${call.id})" class="trigger-btn" title="Trigger Now">
                                         <i class="fas fa-play"></i> Trigger Now
                                     </button>
+                                    <button onclick="downloadCallWord(${call.id})" class="download-word-btn" title="Download Word Report">
+                                        <i class="fas fa-file-word"></i> Word
+                                    </button>
                                 </div>
                             ` : `
                                 <div class="scheduled-call-actions">
                                     <button onclick="deleteUserCall(${call.id})" class="delete-btn" title="Delete Call">
                                         <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                    <button onclick="downloadCallWord(${call.id})" class="download-word-btn" title="Download Word Report">
+                                        <i class="fas fa-file-word"></i> Word
                                     </button>
                                 </div>
                             `;
@@ -1787,4 +1800,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Start the dashboard initialization
     initializeDashboard();
+
+    // Function to download call as Word document
+    window.downloadCallWord = async function(callId) {
+        try {
+            console.log('📄 Downloading Word document for call:', callId);
+            
+            const response = await fetch(`/api/calls/${callId}/export-word`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to download Word document');
+            }
+            
+            // Get the filename from the response headers
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = `call_report_${callId}.docx`;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+            
+            // Create blob and download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showNotification('Word document downloaded successfully!', 'success');
+            
+        } catch (error) {
+            console.error('Error downloading Word document:', error);
+            showNotification(error.message || 'Failed to download Word document', 'error');
+        }
+    };
 }); 
