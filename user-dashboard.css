@@ -669,12 +669,108 @@ body {
 }
 
 @keyframes slideIn {
-    from { 
-        opacity: 0;
-        transform: translateY(-20px) scale(0.95);
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Action buttons for scheduled calls */
+.scheduled-call-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.scheduled-call-actions button {
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.scheduled-call-actions button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.scheduled-call-actions .edit-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.scheduled-call-actions .edit-btn:hover {
+    background: linear-gradient(135deg, #43a3f5 0%, #00e6f2 100%);
+}
+
+.scheduled-call-actions .delete-btn {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    color: white;
+}
+
+.scheduled-call-actions .delete-btn:hover {
+    background: linear-gradient(135deg, #ff5252 0%, #e53935 100%);
+}
+
+.scheduled-call-actions .trigger-btn {
+    background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+    color: white;
+}
+
+.scheduled-call-actions .trigger-btn:hover {
+    background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+}
+
+/* Status badges for calls */
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-badge.completed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.failed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* Modal styles for edit call */
+.edit-call-modal .modal-content {
+    max-width: 500px;
+}
+
+.edit-call-modal input[type="datetime-local"] {
+    font-family: inherit;
+}
+
+/* Responsive design for action buttons */
+@media (max-width: 480px) {
+    .scheduled-call-actions {
+        flex-direction: column;
+        gap: 0.25rem;
     }
-    to { 
-        opacity: 1;
-        transform: translateY(0) scale(1);
+    
+    .scheduled-call-actions button {
+        width: 100%;
+        justify-content: center;
+        padding: 0.5rem;
+        font-size: 0.875rem;
     }
 }

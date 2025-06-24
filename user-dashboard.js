@@ -288,13 +288,26 @@ document.addEventListener('DOMContentLoaded', function() {
                             const status = call.completed ? 'Completed' : call.failed ? 'Failed' : 'Pending';
                             const statusClass = call.completed ? 'completed' : call.failed ? 'failed' : 'pending';
                             
-                            const triggerBtn = !call.completed && !call.failed ? 
-                                `<button onclick="triggerCall(${call.id})" style="background: #667eea; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-left: 0.5rem;">Trigger Now</button>` : '';
+                            // Action buttons - only show for pending calls
+                            const actionButtons = !call.completed && !call.failed ? `
+                                <div class="scheduled-call-actions">
+                                    <button onclick="editUserCall(${call.id})" class="edit-btn" title="Edit Call">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button onclick="deleteUserCall(${call.id})" class="delete-btn" title="Delete Call">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                    <button onclick="triggerCall(${call.id})" class="trigger-btn" title="Trigger Now">
+                                        <i class="fas fa-play"></i> Trigger Now
+                                    </button>
+                                </div>
+                            ` : '';
                             
                             return `<li style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 8px;">
                                 <strong>${call.name}</strong> (${call.phone})<br>
                                 ${formattedTime}<br>
-                                Status: <span class="${statusClass}">${status}</span> ${triggerBtn}
+                                Status: <span class="status-badge ${statusClass}">${status}</span>
+                                ${actionButtons}
                             </li>`;
                         }).join('');
                         infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-calendar-check'></i> Scheduled Calls</div><div class='info-box-content'><ul style="list-style: none; padding: 0;">${callsList}</ul></div>`;
@@ -1177,6 +1190,256 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (err) {
             showNotification('Network error. Please try again.', 'error');
+        }
+    };
+
+    // Function to edit a user call
+    window.editUserCall = async function(callId) {
+        try {
+            console.log(`✏️ Editing call: ${callId}`);
+            
+            // Fetch call details
+            const response = await fetch(`/api/calls/${callId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch call details');
+            }
+            
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to fetch call details');
+            }
+            
+            const call = data.call;
+            
+            // Show edit modal
+            showEditCallModal(call);
+            
+        } catch (error) {
+            console.error('❌ Error editing call:', error);
+            showNotification('Failed to load call details: ' + error.message, 'error');
+        }
+    };
+
+    // Function to show edit call modal
+    function showEditCallModal(call) {
+        // Convert UTC time to local time for the datetime-local input
+        const localTime = new Date(call.time);
+        const year = localTime.getFullYear();
+        const month = String(localTime.getMonth() + 1).padStart(2, '0');
+        const day = String(localTime.getDate()).padStart(2, '0');
+        const hours = String(localTime.getHours()).padStart(2, '0');
+        const minutes = String(localTime.getMinutes()).padStart(2, '0');
+        const localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+        
+        const modalHTML = `
+            <div id="editCallModal" class="modal-overlay" style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            ">
+                <div class="modal-content" style="
+                    background: white;
+                    padding: 2rem;
+                    border-radius: 12px;
+                    max-width: 500px;
+                    width: 90%;
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h2 style="margin: 0; color: #1f2937; font-size: 1.5rem;">
+                            <i class="fas fa-edit" style="color: #4facfe; margin-right: 0.5rem;"></i>
+                            Edit Scheduled Call
+                        </h2>
+                        <button id="closeEditCallModal" style="
+                            background: none;
+                            border: none;
+                            font-size: 1.5rem;
+                            cursor: pointer;
+                            color: #6b7280;
+                        ">&times;</button>
+                    </div>
+                    
+                    <form id="editCallForm">
+                        <input type="hidden" id="editCallId" value="${call.id}">
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label for="editCallName" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Contact Name</label>
+                            <input type="text" id="editCallName" value="${call.name}" required style="
+                                width: 100%;
+                                padding: 0.75rem;
+                                border: 1px solid #d1d5db;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                box-sizing: border-box;
+                            " placeholder="Enter contact name">
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label for="editCallPhone" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Phone Number</label>
+                            <input type="tel" id="editCallPhone" value="${call.phone}" required style="
+                                width: 100%;
+                                padding: 0.75rem;
+                                border: 1px solid #d1d5db;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                box-sizing: border-box;
+                            " placeholder="+1234567890" pattern="[0-9\\-\\+\\s\\(\\)]{7,}">
+                        </div>
+                        
+                        <div style="margin-bottom: 1.5rem;">
+                            <label for="editCallTime" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Scheduled Time</label>
+                            <input type="datetime-local" id="editCallTime" value="${localDateTime}" required style="
+                                width: 100%;
+                                padding: 0.75rem;
+                                border: 1px solid #d1d5db;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                box-sizing: border-box;
+                            ">
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem;">
+                            <button type="submit" style="
+                                flex: 1;
+                                background: #4facfe;
+                                color: white;
+                                border: none;
+                                padding: 0.75rem;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                font-weight: 600;
+                                cursor: pointer;
+                            ">
+                                <i class="fas fa-save" style="margin-right: 0.5rem;"></i>
+                                Update Call
+                            </button>
+                            <button type="button" id="cancelEditCall" style="
+                                flex: 1;
+                                background: #6b7280;
+                                color: white;
+                                border: none;
+                                padding: 0.75rem;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                font-weight: 600;
+                                cursor: pointer;
+                            ">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Add event listeners
+        document.getElementById('closeEditCallModal').addEventListener('click', closeEditCallModal);
+        document.getElementById('cancelEditCall').addEventListener('click', closeEditCallModal);
+        document.getElementById('editCallForm').addEventListener('submit', handleEditCall);
+        
+        // Close modal when clicking outside
+        document.getElementById('editCallModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditCallModal();
+            }
+        });
+    }
+    
+    // Function to close edit call modal
+    function closeEditCallModal() {
+        const modal = document.getElementById('editCallModal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+    
+    // Function to handle edit call submission
+    async function handleEditCall(e) {
+        e.preventDefault();
+        
+        const callId = document.getElementById('editCallId').value;
+        const name = document.getElementById('editCallName').value.trim();
+        const phone = document.getElementById('editCallPhone').value.trim();
+        const time = document.getElementById('editCallTime').value;
+        
+        if (!name || !phone || !time) {
+            showNotification('Please fill in all fields', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/calls/${callId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ name, phone, time })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                showNotification('Call updated successfully!', 'success');
+                closeEditCallModal();
+                // Refresh the calls list
+                statCards[1].click();
+            } else {
+                showNotification(data.message || 'Failed to update call', 'error');
+            }
+        } catch (err) {
+            showNotification('Network error. Please try again.', 'error');
+        }
+    }
+
+    // Function to delete a user call
+    window.deleteUserCall = async function(callId) {
+        try {
+            const confirmed = confirm('Are you sure you want to delete this call? This action cannot be undone.');
+            if (!confirmed) {
+                return;
+            }
+            
+            console.log(`🗑️ Deleting call: ${callId}`);
+            
+            const response = await fetch(`/api/calls/${callId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to delete call');
+            }
+            
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to delete call');
+            }
+            
+            // Success
+            showNotification('Call deleted successfully!', 'success');
+            // Refresh the calls list
+            statCards[1].click();
+        } catch (error) {
+            console.error('❌ Error deleting call:', error);
+            showNotification('Failed to delete call: ' + error.message, 'error');
         }
     };
 
