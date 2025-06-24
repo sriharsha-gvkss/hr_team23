@@ -762,6 +762,138 @@ app.post('/api/schedule-call', authenticateToken, (req, res) => {
     }
 });
 
+// Direct call endpoint - make call immediately
+app.post('/api/direct-call', authenticateToken, async (req, res) => {
+    if (!twilioClient) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Twilio client not configured' 
+        });
+    }
+    
+    const { name, company, phone } = req.body;
+    if (!name || !company || !phone) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Name, company, and phone number are required.' 
+        });
+    }
+    
+    try {
+        const publicUrl = process.env.PUBLIC_URL || 'https://hr-team23.onrender.com';
+        const twimlUrl = `${publicUrl}/twiml/ask`;
+        const statusCallbackUrl = `${publicUrl}/call-status`;
+        console.log(`Making direct call to ${name} (${phone}) at ${twimlUrl}`);
+        
+        // Make the call immediately
+        const call = await twilioClient.calls.create({
+            url: twimlUrl,
+            to: phone,
+            from: ***REMOVED***,
+            statusCallback: statusCallbackUrl,
+            statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+            statusCallbackMethod: 'POST'
+        });
+        
+        // Save call record for tracking
+        const callsData = loadCalls();
+        const newCall = {
+            id: callsData.calls.length + 1,
+            userId: req.user.userId,
+            name,
+            company,
+            phone,
+            time: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            completed: true,
+            completed_at: new Date().toISOString(),
+            direct_call: true,
+            twilio_call_sid: call.sid
+        };
+        callsData.calls.push(newCall);
+        saveCalls(callsData);
+        
+        console.log(`Direct call made successfully to ${name} (${phone})`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Call initiated successfully!',
+            call: newCall
+        });
+    } catch (err) {
+        console.error('Error making direct call:', err);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to make call: ' + err.message 
+        });
+    }
+});
+
+// Manual call trigger for testing (admin only)
+app.post('/api/trigger-call/:callId', authenticateToken, async (req, res) => {
+    if (!twilioClient) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Twilio client not configured' 
+        });
+    }
+    
+    const callId = parseInt(req.params.callId);
+    const callsData = loadCalls();
+    const call = callsData.calls.find(c => c.id === callId);
+    
+    if (!call) {
+        return res.status(404).json({ 
+            success: false, 
+            message: 'Call not found' 
+        });
+    }
+    
+    if (call.userId !== req.user.userId) {
+        return res.status(403).json({ 
+            success: false, 
+            message: 'Not authorized to trigger this call' 
+        });
+    }
+    
+    try {
+        const publicUrl = process.env.PUBLIC_URL || 'https://hr-team23.onrender.com';
+        const twimlUrl = `${publicUrl}/twiml/ask`;
+        const statusCallbackUrl = `${publicUrl}/call-status`;
+        
+        console.log(`Triggering call to ${call.name} (${call.phone}) at ${twimlUrl}`);
+        
+        const twilioCall = await twilioClient.calls.create({
+            url: twimlUrl,
+            to: call.phone,
+            from: ***REMOVED***,
+            statusCallback: statusCallbackUrl,
+            statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+            statusCallbackMethod: 'POST'
+        });
+        
+        // Update call status
+        call.status = 'In Progress';
+        call.twilio_call_sid = twilioCall.sid;
+        call.triggered_at = new Date().toISOString();
+        saveCalls(callsData);
+        
+        console.log(`Call triggered successfully to ${call.name} (${call.phone})`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Call triggered successfully!',
+            call: call
+        });
+    } catch (err) {
+        console.error('Error triggering call:', err);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to trigger call: ' + err.message 
+        });
+    }
+});
+
 // Get all scheduled calls for the logged-in user
 app.get('/api/scheduled-calls', authenticateToken, (req, res) => {
     const callsData = loadCalls();
