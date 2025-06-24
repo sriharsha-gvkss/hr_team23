@@ -764,15 +764,28 @@ app.post('/api/schedule-call', authenticateToken, (req, res) => {
 
 // Direct call endpoint - make call immediately
 app.post('/api/direct-call', authenticateToken, async (req, res) => {
+    console.log('📞 Direct call request received:', req.body);
+    console.log('🔧 Environment check:', {
+        hasTwilioClient: !!twilioClient,
+        hasAccountSid: !!***REMOVED***,
+        hasAuthToken: !!***REMOVED***,
+        hasPhoneNumber: !!***REMOVED***,
+        phoneNumber: ***REMOVED***
+    });
+    
     if (!twilioClient) {
+        console.error('❌ Twilio client not configured');
         return res.status(400).json({ 
             success: false, 
-            message: 'Twilio client not configured' 
+            message: 'Twilio client not configured. Please check your environment variables.' 
         });
     }
     
     const { name, company, phone } = req.body;
+    console.log('📋 Call details:', { name, company, phone });
+    
     if (!name || !company || !phone) {
+        console.error('❌ Missing required fields:', { name, company, phone });
         return res.status(400).json({ 
             success: false, 
             message: 'Name, company, and phone number are required.' 
@@ -783,7 +796,18 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         const publicUrl = process.env.PUBLIC_URL || 'https://hr-team23.onrender.com';
         const twimlUrl = `${publicUrl}/twiml/ask`;
         const statusCallbackUrl = `${publicUrl}/call-status`;
-        console.log(`Making direct call to ${name} (${phone}) at ${twimlUrl}`);
+        
+        console.log('🌐 URLs:', { publicUrl, twimlUrl, statusCallbackUrl });
+        console.log(`📞 Making direct call to ${name} (${phone}) at ${twimlUrl}`);
+        
+        // Validate phone number format
+        if (!phone.startsWith('+')) {
+            console.error('❌ Invalid phone number format:', phone);
+            return res.status(400).json({
+                success: false,
+                message: 'Phone number must start with + (e.g., +1234567890)'
+            });
+        }
         
         // Make the call immediately
         const call = await twilioClient.calls.create({
@@ -794,6 +818,8 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
             statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
             statusCallbackMethod: 'POST'
         });
+        
+        console.log('✅ Twilio call created:', call.sid);
         
         // Save call record for tracking
         const callsData = loadCalls();
@@ -813,7 +839,7 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         callsData.calls.push(newCall);
         saveCalls(callsData);
         
-        console.log(`Direct call made successfully to ${name} (${phone})`);
+        console.log(`✅ Direct call made successfully to ${name} (${phone})`);
         
         res.json({ 
             success: true, 
@@ -821,10 +847,22 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
             call: newCall
         });
     } catch (err) {
-        console.error('Error making direct call:', err);
+        console.error('❌ Error making direct call:', err);
+        console.error('❌ Error details:', {
+            message: err.message,
+            code: err.code,
+            status: err.status,
+            moreInfo: err.moreInfo
+        });
+        
         res.status(500).json({ 
             success: false, 
-            message: 'Failed to make call: ' + err.message 
+            message: 'Failed to make call: ' + err.message,
+            error: {
+                code: err.code,
+                status: err.status,
+                moreInfo: err.moreInfo
+            }
         });
     }
 });
