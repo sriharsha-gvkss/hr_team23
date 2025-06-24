@@ -1849,13 +1849,6 @@ app.get('/api/test', (req, res) => {
 // Get individual call details
 app.get('/api/calls/:callId', authenticateToken, (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Only admins can view call details' 
-            });
-        }
-
         const callId = req.params.callId;
         const callsData = loadCalls();
         const call = callsData.calls.find(c => c.id == callId);
@@ -1864,6 +1857,14 @@ app.get('/api/calls/:callId', authenticateToken, (req, res) => {
             return res.status(404).json({ 
                 success: false, 
                 message: 'Call not found' 
+            });
+        }
+
+        // Allow users to view their own calls or admins to view any call
+        if (req.user.role !== 'admin' && call.userId !== req.user.userId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'You can only view your own calls' 
             });
         }
 
@@ -1891,13 +1892,6 @@ app.get('/api/calls/:callId', authenticateToken, (req, res) => {
 // Update individual call
 app.put('/api/calls/:callId', authenticateToken, (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Only admins can update calls' 
-            });
-        }
-
         const callId = req.params.callId;
         const { name, phone, time } = req.body;
 
@@ -1919,6 +1913,14 @@ app.put('/api/calls/:callId', authenticateToken, (req, res) => {
         }
 
         const call = callsData.calls[callIndex];
+        
+        // Allow users to edit their own calls or admins to edit any call
+        if (req.user.role !== 'admin' && call.userId !== req.user.userId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'You can only edit your own calls' 
+            });
+        }
         
         // Don't allow editing completed or failed calls
         if (call.completed || call.failed) {
@@ -1972,13 +1974,6 @@ app.put('/api/calls/:callId', authenticateToken, (req, res) => {
 // Delete individual call
 app.delete('/api/calls/:callId', authenticateToken, (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Only admins can delete calls' 
-            });
-        }
-
         const callId = req.params.callId;
         const callsData = loadCalls();
         const callIndex = callsData.calls.findIndex(c => c.id == callId);
@@ -1991,6 +1986,14 @@ app.delete('/api/calls/:callId', authenticateToken, (req, res) => {
         }
 
         const call = callsData.calls[callIndex];
+        
+        // Allow users to delete their own calls or admins to delete any call
+        if (req.user.role !== 'admin' && call.userId !== req.user.userId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'You can only delete your own calls' 
+            });
+        }
         
         // Cancel scheduled job if exists
         if (scheduledJobs.has(callId)) {
@@ -2027,13 +2030,6 @@ app.delete('/api/calls/:callId', authenticateToken, (req, res) => {
 // Trigger call immediately
 app.post('/api/trigger-call/:callId', authenticateToken, (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Only admins can trigger calls' 
-            });
-        }
-
         const callId = req.params.callId;
         const callsData = loadCalls();
         const callIndex = callsData.calls.findIndex(c => c.id == callId);
@@ -2047,6 +2043,14 @@ app.post('/api/trigger-call/:callId', authenticateToken, (req, res) => {
 
         const call = callsData.calls[callIndex];
         
+        // Allow users to trigger their own calls or admins to trigger any call
+        if (req.user.role !== 'admin' && call.userId !== req.user.userId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'You can only trigger your own calls' 
+            });
+        }
+        
         // Don't allow triggering completed or failed calls
         if (call.completed || call.failed) {
             return res.status(400).json({ 
@@ -2055,7 +2059,7 @@ app.post('/api/trigger-call/:callId', authenticateToken, (req, res) => {
             });
         }
 
-        console.log(`🚀 Admin triggered call ${callId} immediately`);
+        console.log(`🚀 Call ${callId} triggered immediately by ${req.user.role === 'admin' ? 'admin' : 'user'}`);
         
         // Make the call immediately
         makeCall(call)
