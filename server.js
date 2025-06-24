@@ -1944,13 +1944,13 @@ app.put('/api/calls/:callId', authenticateToken, (req, res) => {
             console.log(`📝 Call ${callId} updated successfully`);
             
             // Reschedule the call if it's pending
-            if (scheduledJobs.has(callId)) {
-                scheduledJobs.get(callId).cancel();
-                scheduledJobs.delete(callId);
+            if (callScheduler.scheduledJobs.has(callId)) {
+                callScheduler.scheduledJobs.get(callId).timeoutId && clearTimeout(callScheduler.scheduledJobs.get(callId).timeoutId);
+                callScheduler.scheduledJobs.delete(callId);
             }
             
             // Schedule the updated call
-            scheduleCall(callsData.calls[callIndex]);
+            callScheduler.scheduleCall(callsData.calls[callIndex]);
             
             res.json({ 
                 success: true, 
@@ -1996,9 +1996,9 @@ app.delete('/api/calls/:callId', authenticateToken, (req, res) => {
         }
         
         // Cancel scheduled job if exists
-        if (scheduledJobs.has(callId)) {
-            scheduledJobs.get(callId).cancel();
-            scheduledJobs.delete(callId);
+        if (callScheduler.scheduledJobs.has(callId)) {
+            callScheduler.scheduledJobs.get(callId).timeoutId && clearTimeout(callScheduler.scheduledJobs.get(callId).timeoutId);
+            callScheduler.scheduledJobs.delete(callId);
             console.log(`🗑️ Cancelled scheduled job for call ${callId}`);
         }
 
@@ -2052,7 +2052,7 @@ app.post('/api/trigger-call/:callId', authenticateToken, (req, res) => {
         }
         
         // Don't allow triggering completed or failed calls
-        if (call.completed || call.failed) {
+        if (call.status === 'completed' || call.status === 'failed') {
             return res.status(400).json({ 
                 success: false, 
                 message: 'Cannot trigger completed or failed calls' 
