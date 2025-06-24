@@ -2525,13 +2525,8 @@ app.get('/api/download-response-report/:responseId', authenticateToken, async (r
         const responses = loadResponses();
         const callsData = loadCalls();
         const usersData = loadUsers();
-        
-        let response;
-        
-        // First, try to find by original ID
-        response = responses.find(r => r.id === responseId);
-        
-        // If not found and it's a generated ID (format: resp-{callSid}-{index})
+
+        let response = responses.find(r => r.id === responseId);
         if (!response && responseId.startsWith('resp-')) {
             const parts = responseId.split('-');
             if (parts.length >= 3) {
@@ -2539,23 +2534,13 @@ app.get('/api/download-response-report/:responseId', authenticateToken, async (r
                 response = responses.find(r => r.callSid === callSid);
             }
         }
-        
         if (!response) {
-            console.log(`❌ Response not found for download ID: ${responseId}`);
-            console.log(`📋 Available response IDs:`, responses.map(r => r.id));
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Response not found' 
-            });
+            return res.status(404).json({ success: false, message: 'Response not found' });
         }
 
-        // Check authorization - users can only download their own responses, admins can download any
         const call = callsData.calls.find(c => c.twilio_call_sid === response.callSid);
         if (req.user.role !== 'admin' && call && call.userId !== req.user.userId) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'You can only download your own response reports' 
-            });
+            return res.status(403).json({ success: false, message: 'You can only download your own response reports' });
         }
 
         const questions = loadQuestions();
@@ -2566,158 +2551,62 @@ app.get('/api/download-response-report/:responseId', authenticateToken, async (r
             sections: [{
                 properties: {},
                 children: [
-                    // Title
                     new Paragraph({
                         text: "Call Response Report",
                         heading: HeadingLevel.HEADING_1,
                         alignment: AlignmentType.CENTER,
-                        spacing: {
-                            after: 400
-                        }
+                        spacing: { after: 400 }
                     }),
-                    
-                    // Response Details Section
                     new Paragraph({
                         text: "Response Details",
                         heading: HeadingLevel.HEADING_2,
-                        spacing: {
-                            before: 400,
-                            after: 200
-                        }
+                        spacing: { before: 400, after: 200 }
                     }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Response ID: ", bold: true }),
-                            new TextRun({ text: responseId })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Call SID: ", bold: true }),
-                            new TextRun({ text: response.callSid || 'N/A' })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "User Name: ", bold: true }),
-                            new TextRun({ text: user ? user.name : 'N/A' })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Contact Name: ", bold: true }),
-                            new TextRun({ text: call ? call.name : 'N/A' })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Phone Number: ", bold: true }),
-                            new TextRun({ text: call ? call.phone : 'N/A' })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Response Date: ", bold: true }),
-                            new TextRun({ text: new Date(response.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Questions Answered: ", bold: true }),
-                            new TextRun({ text: response.answers ? response.answers.length.toString() : '0' })
-                        ],
-                        spacing: { after: 200 }
-                    }),
-                    
-                    // Questions & Answers Section
+                    new Paragraph({ children: [new TextRun({ text: "Response ID: ", bold: true }), new TextRun({ text: responseId })], spacing: { after: 100 } }),
+                    new Paragraph({ children: [new TextRun({ text: "Call SID: ", bold: true }), new TextRun({ text: response.callSid || 'N/A' })], spacing: { after: 100 } }),
+                    new Paragraph({ children: [new TextRun({ text: "User Name: ", bold: true }), new TextRun({ text: user ? user.name : 'N/A' })], spacing: { after: 100 } }),
+                    new Paragraph({ children: [new TextRun({ text: "Contact Name: ", bold: true }), new TextRun({ text: call ? call.name : 'N/A' })], spacing: { after: 100 } }),
+                    new Paragraph({ children: [new TextRun({ text: "Phone Number: ", bold: true }), new TextRun({ text: call ? call.phone : 'N/A' })], spacing: { after: 100 } }),
+                    new Paragraph({ children: [new TextRun({ text: "Response Date: ", bold: true }), new TextRun({ text: new Date(response.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) })], spacing: { after: 100 } }),
+                    new Paragraph({ children: [new TextRun({ text: "Questions Answered: ", bold: true }), new TextRun({ text: response.answers ? response.answers.length.toString() : '0' })], spacing: { after: 200 } }),
                     new Paragraph({
                         text: "Questions & Answers",
                         heading: HeadingLevel.HEADING_2,
-                        spacing: {
-                            before: 400,
-                            after: 200
-                        }
+                        spacing: { before: 400, after: 200 }
                     }),
-                    
-                    // Add Q&A in list format
                     ...(response.answers && response.answers.length > 0 ? response.answers.map((answer, index) => {
                         const question = questions[index] || `Question ${index + 1}`;
                         const confidence = response.confidences ? response.confidences[index] : null;
-                        
                         return [
                             new Paragraph({
-                                children: [
-                                    new TextRun({ 
-                                        text: `Q${index + 1}: ${question}`, 
-                                        bold: true,
-                                        size: 24
-                                    })
-                                ],
-                                spacing: { 
-                                    before: 200,
-                                    after: 100 
-                                }
+                                children: [new TextRun({ text: `Q${index + 1}: ${question}`, bold: true, size: 24 })],
+                                spacing: { before: 200, after: 100 }
                             }),
-                            
                             new Paragraph({
-                                children: [
-                                    new TextRun({ 
-                                        text: `Answer: ${answer || 'No response recorded'}`, 
-                                        size: 24
-                                    })
-                                ],
+                                children: [new TextRun({ text: `Answer: ${answer || 'No response recorded'}`, size: 24 })],
                                 spacing: { after: 100 }
                             }),
-                            
                             new Paragraph({
-                                children: [
-                                    new TextRun({ 
-                                        text: `Confidence: ${confidence ? (confidence * 100).toFixed(1) + '%' : 'N/A'}`, 
-                                        size: 20,
-                                        color: confidence ? (confidence > 0.7 ? '008000' : confidence > 0.5 ? 'FFA500' : 'FF0000') : '666666'
-                                    })
-                                ],
+                                children: [new TextRun({ text: `Confidence: ${confidence ? (confidence * 100).toFixed(1) + '%' : 'N/A'}`, size: 20, color: confidence ? (confidence > 0.7 ? '008000' : confidence > 0.5 ? 'FFA500' : 'FF0000') : '666666' })],
                                 spacing: { after: 200 }
                             })
                         ];
                     }).flat() : [
-                        new Paragraph({
-                            text: "No questions and answers available for this response.",
-                            spacing: { after: 200 }
-                        })
+                        new Paragraph({ text: "No questions and answers available for this response.", spacing: { after: 200 } })
                     ])
                 ]
             }]
         });
 
-        // Generate Word document buffer
         const buffer = await Packer.toBuffer(doc);
-        
         const filename = `response_report_${responseId}.docx`;
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        
         res.send(buffer);
 
     } catch (error) {
         console.error('Error generating response report:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to generate response report: ' + error.message 
-        });
+        res.status(500).json({ success: false, message: 'Failed to generate response report: ' + error.message });
     }
 });
 
