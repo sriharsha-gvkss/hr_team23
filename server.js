@@ -638,6 +638,12 @@ class CallScheduler {
 
     scheduleCall(callData) {
         try {
+            // Validate callData and scheduledTime
+            if (!callData || !callData.scheduledTime) {
+                console.error(`❌ Invalid call data for scheduling:`, callData);
+                return null;
+            }
+
             // Parse the time string and handle timezone correctly
             let callTime;
             
@@ -648,6 +654,12 @@ class CallScheduler {
                 // If it's a string, parse it as IST time
                 const timeString = callData.scheduledTime;
                 
+                // Validate timeString
+                if (!timeString || typeof timeString !== 'string') {
+                    console.error(`❌ Invalid time string for call ${callData.id}:`, timeString);
+                    return null;
+                }
+                
                 // Check if it's already in ISO format (UTC)
                 if (timeString.includes('T') && timeString.includes('Z')) {
                     // It's already in UTC, convert to IST
@@ -656,12 +668,22 @@ class CallScheduler {
                     // It's a local time string, treat it as IST
                     // Create a date object in IST
                     const [datePart, timePart] = timeString.split('T');
+                    if (!datePart || !timePart) {
+                        console.error(`❌ Invalid time format for call ${callData.id}:`, timeString);
+                        return null;
+                    }
                     const [year, month, day] = datePart.split('-').map(Number);
                     const [hour, minute] = timePart.split(':').map(Number);
                     
                     // Create date in IST (UTC+5:30)
                     callTime = new Date(Date.UTC(year, month - 1, day, hour, minute) - (5.5 * 60 * 60 * 1000));
                 }
+            }
+            
+            // Validate the parsed time
+            if (isNaN(callTime.getTime())) {
+                console.error(`❌ Invalid parsed time for call ${callData.id}:`, callTime);
+                return null;
             }
             
             const now = new Date();
@@ -696,7 +718,7 @@ class CallScheduler {
                 return null;
             }
         } catch (error) {
-            console.error(`❌ Error scheduling call for ${callData.name}:`, error);
+            console.error(`❌ Error scheduling call for ${callData?.name || 'Unknown'}:`, error);
             return null;
         }
     }
@@ -1958,10 +1980,17 @@ app.put('/api/calls/:callId', authenticateToken, (req, res) => {
         if (saveCalls(callsData)) {
             console.log(`📝 Call ${callId} updated successfully`);
             
-            // Reschedule the call if it's pending
-            if (callScheduler.scheduledJobs.has(callId)) {
-                callScheduler.scheduledJobs.get(callId).timeoutId && clearTimeout(callScheduler.scheduledJobs.get(callId).timeoutId);
-                callScheduler.scheduledJobs.delete(callId);
+            // Cancel any existing scheduled job for this call
+            const jobKeys = Array.from(callScheduler.scheduledJobs.keys());
+            const existingJobKey = jobKeys.find(key => key.startsWith(`call_${callId}_`));
+            
+            if (existingJobKey) {
+                const existingJob = callScheduler.scheduledJobs.get(existingJobKey);
+                if (existingJob && existingJob.timeoutId) {
+                    clearTimeout(existingJob.timeoutId);
+                }
+                callScheduler.scheduledJobs.delete(existingJobKey);
+                console.log(`🗑️ Cancelled existing scheduled job for call ${callId}`);
             }
             
             // Schedule the updated call
@@ -2011,9 +2040,15 @@ app.delete('/api/calls/:callId', authenticateToken, (req, res) => {
         }
         
         // Cancel scheduled job if exists
-        if (callScheduler.scheduledJobs.has(callId)) {
-            callScheduler.scheduledJobs.get(callId).timeoutId && clearTimeout(callScheduler.scheduledJobs.get(callId).timeoutId);
-            callScheduler.scheduledJobs.delete(callId);
+        const jobKeys = Array.from(callScheduler.scheduledJobs.keys());
+        const existingJobKey = jobKeys.find(key => key.startsWith(`call_${callId}_`));
+        
+        if (existingJobKey) {
+            const existingJob = callScheduler.scheduledJobs.get(existingJobKey);
+            if (existingJob && existingJob.timeoutId) {
+                clearTimeout(existingJob.timeoutId);
+            }
+            callScheduler.scheduledJobs.delete(existingJobKey);
             console.log(`🗑️ Cancelled scheduled job for call ${callId}`);
         }
 
