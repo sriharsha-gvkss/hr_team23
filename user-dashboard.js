@@ -1204,10 +1204,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to edit a user call
     window.editUserCall = async function(callId) {
         try {
-            console.log(`✏️ Editing call: ${callId}`);
+            console.log('✏️ Editing call:', callId);
+            
             const response = await fetch(`/api/calls/${callId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            
             if (!response.ok) {
                 if (response.status === 404) {
                     showNotification('This call no longer exists or was already deleted.', 'error');
@@ -1216,14 +1218,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return;
             }
-            const data = await response.json();
-            if (!data.success) {
-                throw new Error(data.message || 'Failed to fetch call details');
-            }
-            const call = data.call;
+            
+            const call = await response.json();
             showEditCallModal(call);
         } catch (error) {
-            showNotification('Failed to load call details: ' + error.message, 'error');
+            console.error('❌ Error editing call:', error);
+            showNotification('Error loading call details. Please try again.', 'error');
         }
     };
 
@@ -1427,3 +1427,61 @@ document.addEventListener('DOMContentLoaded', function() {
             const confirmed = confirm('Are you sure you want to delete this call? This action cannot be undone.');
             if (!confirmed) return;
             console.log('🗑️ Deleting call:', callId);
+            
+            const response = await fetch(`/api/calls/${callId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    showNotification('This call no longer exists or was already deleted.', 'error');
+                } else {
+                    throw new Error('Failed to delete call');
+                }
+                return;
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showNotification('Call deleted successfully!', 'success');
+                // Refresh the calls list
+                statCards[1].click();
+            } else {
+                showNotification(data.message || 'Failed to delete call', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error deleting call:', error);
+            showNotification('Error deleting call. Please try again.', 'error');
+        }
+    };
+
+    // Function to trigger a user call
+    window.triggerUserCall = async function(callId) {
+        try {
+            const confirmed = confirm('Are you sure you want to trigger this call now?');
+            if (!confirmed) return;
+            
+            console.log('🚀 Triggering call:', callId);
+            
+            const response = await fetch(`/api/calls/${callId}/trigger`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                showNotification('Call triggered successfully!', 'success');
+                // Refresh the calls list
+                statCards[1].click();
+            } else {
+                showNotification(data.message || 'Failed to trigger call', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error triggering call:', error);
+            showNotification('Error triggering call. Please try again.', 'error');
+        }
+    };
+});
