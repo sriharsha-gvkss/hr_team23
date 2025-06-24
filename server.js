@@ -536,8 +536,8 @@ app.post('/api/reset-password', (req, res) => {
 
 // Schedule a call for the logged-in user
 app.post('/api/schedule-call', authenticateToken, (req, res) => {
-    const { name, phone, time } = req.body;
-    if (!name || !phone || !time) {
+    const { name, company, phone, time } = req.body;
+    if (!name || !company || !phone || !time) {
         return res.status(400).json({ success: false, message: 'All fields are required.' });
     }
     
@@ -553,6 +553,7 @@ app.post('/api/schedule-call', authenticateToken, (req, res) => {
             id: callsData.calls.length + 1,
             userId: user.id,
             name,
+            company,
             phone,
             scheduledTime: time, // Use scheduledTime instead of time
             status: 'Scheduled',
@@ -1068,8 +1069,17 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
         const response = new VoiceResponse();
         
         if (questionIndex === 0) {
-            // First time - greeting
-            response.say('Hello, this is an automated call. Please answer the following questions.');
+            // First time - greeting with person's name and company
+            const callsData = loadCalls();
+            const call = callsData.calls.find(c => c.twilio_call_sid === callSid);
+            
+            if (call && call.name && call.company) {
+                response.say(`Hi ${call.name}, calling from ${call.company}. Please answer the following questions.`);
+            } else if (call && call.name) {
+                response.say(`Hi ${call.name}, this is an automated call. Please answer the following questions.`);
+            } else {
+                response.say('Hello, this is an automated call. Please answer the following questions.');
+            }
             response.redirect({ method: 'POST' }, `/twiml/ask?questionIndex=1`);
         } else if (questionIndex <= questions.length) {
             // Store response from previous question if present
@@ -1150,11 +1160,11 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         });
     }
     
-    const { name, phone } = req.body;
-    if (!name || !phone) {
+    const { name, company, phone } = req.body;
+    if (!name || !company || !phone) {
         return res.status(400).json({ 
             success: false, 
-            message: 'Name and phone number are required.' 
+            message: 'Name, company, and phone number are required.' 
         });
     }
     
@@ -1180,6 +1190,7 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
             id: callsData.calls.length + 1,
             userId: req.user.userId,
             name,
+            company,
             phone,
             time: new Date().toISOString(),
             created_at: new Date().toISOString(),
@@ -1939,12 +1950,12 @@ app.get('/api/calls/:callId', authenticateToken, (req, res) => {
 app.put('/api/calls/:callId', authenticateToken, (req, res) => {
     try {
         const callId = req.params.callId;
-        const { name, phone, time } = req.body;
+        const { name, company, phone, time } = req.body;
 
-        if (!name || !phone || !time) {
+        if (!name || !company || !phone || !time) {
             return res.status(400).json({ 
                 success: false, 
-                message: 'Name, phone, and time are required' 
+                message: 'Name, company, phone, and time are required' 
             });
         }
 
@@ -1994,6 +2005,7 @@ app.put('/api/calls/:callId', authenticateToken, (req, res) => {
         callsData.calls[callIndex] = {
             ...call,
             name: name.trim(),
+            company: company.trim(),
             phone: phone.trim(),
             scheduledTime: utcTime.toISOString(),
             updated_at: new Date().toISOString()

@@ -216,6 +216,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             <input type="text" id="callName" name="callName" required style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 0.25rem;">
                         </div>
                         <div style="margin-bottom: 1rem;">
+                            <label for="callCompany">Company Name</label><br>
+                            <input type="text" id="callCompany" name="callCompany" required style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 0.25rem;">
+                        </div>
+                        <div style="margin-bottom: 1rem;">
                             <label for="callPhone">Phone Number</label><br>
                             <input type="tel" id="callPhone" name="callPhone" required pattern="[0-9\\-\\+\\s\\(\\)]{7,}" style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 0.25rem;">
                         </div>
@@ -233,9 +237,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 scheduleForm.addEventListener('submit', async function(e) {
                     e.preventDefault();
                     const name = document.getElementById('callName').value.trim();
+                    const company = document.getElementById('callCompany').value.trim();
                     const phone = document.getElementById('callPhone').value.trim();
                     const time = document.getElementById('callTime').value;
-                    if (!name || !phone || !time) {
+                    if (!name || !company || !phone || !time) {
                         showNotification('Please fill in all fields', 'error');
                         return;
                     }
@@ -246,7 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 'Content-Type': 'application/json',
                                 'Authorization': `Bearer ${token}`
                             },
-                            body: JSON.stringify({ name, phone, time })
+                            body: JSON.stringify({ name, company, phone, time })
                         });
                         const data = await response.json();
                         if (response.ok && data.success) {
@@ -312,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             `;
                             
                             return `<li style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 8px;">
-                                <strong>${call.name}</strong> (${call.phone})<br>
+                                <strong>${call.name}</strong>${call.company ? ` (${call.company})` : ''} (${call.phone})<br>
                                 ${formattedTime}<br>
                                 Status: <span class="status-badge ${statusClass}">${status}</span>
                                 ${actionButtons}
@@ -1071,6 +1076,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             " placeholder="Enter name">
                         </div>
                         
+                        <div style="margin-bottom: 1rem;">
+                            <label for="directCallCompany" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Company Name</label>
+                            <input type="text" id="directCallCompany" required style="
+                                width: 100%;
+                                padding: 0.75rem;
+                                border: 1px solid #d1d5db;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                box-sizing: border-box;
+                            " placeholder="Enter company name">
+                        </div>
+                        
                         <div style="margin-bottom: 1.5rem;">
                             <label for="directCallPhone" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Phone Number</label>
                             <input type="tel" id="directCallPhone" required style="
@@ -1147,9 +1164,10 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         
         const name = document.getElementById('directCallName').value.trim();
+        const company = document.getElementById('directCallCompany').value.trim();
         const phone = document.getElementById('directCallPhone').value.trim();
         
-        if (!name || !phone) {
+        if (!name || !company || !phone) {
             showNotification('Please fill in all fields', 'error');
             return;
         }
@@ -1162,7 +1180,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ name, phone })
+                body: JSON.stringify({ name, company, phone })
             });
             
             const data = await response.json();
@@ -1319,6 +1337,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <div style="margin-bottom: 1rem;">
+                            <label for="editCallCompany" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Company Name</label>
+                            <input type="text" id="editCallCompany" value="${call.company || ''}" required style="
+                                width: 100%;
+                                padding: 0.75rem;
+                                border: 1px solid #d1d5db;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                box-sizing: border-box;
+                            " placeholder="Enter company name">
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
                             <label for="editCallPhone" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Phone Number</label>
                             <input type="tel" id="editCallPhone" value="${call.phone}" required style="
                                 width: 100%;
@@ -1406,10 +1436,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const callId = document.getElementById('editCallId').value;
         const name = document.getElementById('editCallName').value.trim();
+        const company = document.getElementById('editCallCompany').value.trim();
         const phone = document.getElementById('editCallPhone').value.trim();
         const time = document.getElementById('editCallTime').value;
         
-        if (!name || !phone || !time) {
+        if (!name || !company || !phone || !time) {
             showNotification('Please fill in all fields', 'error');
             return;
         }
@@ -1421,7 +1452,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ name, phone, time })
+                body: JSON.stringify({ name, company, phone, time })
             });
             
             const data = await response.json();
