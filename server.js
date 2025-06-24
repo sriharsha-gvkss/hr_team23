@@ -1976,12 +1976,26 @@ app.put('/api/calls/:callId', authenticateToken, (req, res) => {
             });
         }
 
-        // Update call details - use scheduledTime to match the data structure
+        // Update call details - properly handle timezone conversion
+        // The datetime-local input provides local time, but we want to treat it as IST time
+        const localDateTime = new Date(time);
+        
+        // Create a new date object treating the input as IST time (UTC+5:30)
+        const istYear = localDateTime.getFullYear();
+        const istMonth = localDateTime.getMonth();
+        const istDay = localDateTime.getDate();
+        const istHour = localDateTime.getHours();
+        const istMinute = localDateTime.getMinutes();
+        
+        // Create UTC time by subtracting IST offset (5:30 hours)
+        const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+        const utcTime = new Date(Date.UTC(istYear, istMonth, istDay, istHour, istMinute) - istOffset);
+        
         callsData.calls[callIndex] = {
             ...call,
             name: name.trim(),
             phone: phone.trim(),
-            scheduledTime: new Date(time).toISOString(),
+            scheduledTime: utcTime.toISOString(),
             updated_at: new Date().toISOString()
         };
 
