@@ -642,11 +642,11 @@ class CallScheduler {
             let callTime;
             
             // If the time is already a Date object, use it
-            if (callData.time instanceof Date) {
-                callTime = callData.time;
+            if (callData.scheduledTime instanceof Date) {
+                callTime = callData.scheduledTime;
             } else {
                 // If it's a string, parse it as IST time
-                const timeString = callData.time;
+                const timeString = callData.scheduledTime;
                 
                 // Check if it's already in ISO format (UTC)
                 if (timeString.includes('T') && timeString.includes('Z')) {
@@ -669,7 +669,7 @@ class CallScheduler {
             // If call is in the future, schedule it
             if (callTime > now) {
                 const timeUntilCall = callTime.getTime() - now.getTime();
-                const jobId = `call_${callData.id}_${callData.time}`;
+                const jobId = `call_${callData.id}_${callData.scheduledTime}`;
                 
                 // Schedule the call
                 const timeoutId = setTimeout(() => {
@@ -689,7 +689,10 @@ class CallScheduler {
             } else {
                 // Call is due now or in the past
                 console.log(`⏰ Call for ${callData.name} is due now or in the past`);
-                this.makeCall(callData);
+                const result = this.makeCall(callData);
+                if (result === null) {
+                    console.log(`⚠️  Call to ${callData.name} failed to initiate`);
+                }
                 return null;
             }
         } catch (error) {
@@ -755,7 +758,8 @@ class CallScheduler {
                 saveCalls(callsData);
             }
             
-            throw error;
+            // Don't throw the error, just return null
+            return null;
         }
     }
 
@@ -782,10 +786,10 @@ class CallScheduler {
 
             // Parse call time correctly
             let callTime;
-            if (call.time instanceof Date) {
-                callTime = call.time;
+            if (call.scheduledTime instanceof Date) {
+                callTime = call.scheduledTime;
             } else {
-                const timeString = call.time;
+                const timeString = call.scheduledTime;
                 if (timeString.includes('T') && timeString.includes('Z')) {
                     callTime = new Date(timeString);
                 } else {
@@ -814,7 +818,18 @@ class CallScheduler {
                 saveCalls(callsData);
                 
                 console.log(`   🚀 Making scheduled call to ${call.name} (${call.phone})`);
-                this.makeCall(call);
+                // Handle errors from makeCall to prevent server crash
+                this.makeCall(call).catch(error => {
+                    console.error(`   ❌ Failed to make call to ${call.name}:`, error.message);
+                    // Update call status to failed
+                    const callsData = loadCalls();
+                    const callIndex = callsData.calls.findIndex(c => c.id === call.id);
+                    if (callIndex !== -1) {
+                        callsData.calls[callIndex].status = 'failed';
+                        callsData.calls[callIndex].error = error.message;
+                        saveCalls(callsData);
+                    }
+                });
                 updated = true;
             } else {
                 console.log(`   ⏰ Call not due yet (${minutesUntilCall} minutes remaining)`);
@@ -1790,7 +1805,7 @@ app.get('/api/download-all-reports', authenticateToken, (req, res) => {
                     'User Name': user ? user.name : 'N/A',
                     'Contact Name': call.name,
                     'Phone Number': call.phone,
-                    'Scheduled Time': new Date(call.time).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+                    'Scheduled Time': new Date(call.scheduledTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
                     'Status': call.completed ? 'Completed' : call.failed ? 'Failed' : 'Pending',
                     'Created At': new Date(call.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
                 };

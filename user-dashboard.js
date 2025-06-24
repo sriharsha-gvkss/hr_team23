@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const status = call.status || 'Pending';
                             const statusClass = status === 'completed' ? 'completed' : status === 'failed' ? 'failed' : 'pending';
                             
-                            // Action buttons - only show for pending calls
+                            // Action buttons - show delete for all calls, but edit/trigger only for pending calls
                             const actionButtons = status !== 'completed' && status !== 'failed' ? `
                                 <div class="scheduled-call-actions">
                                     <button onclick="editUserCall(${call.id})" class="edit-btn" title="Edit Call">
@@ -303,7 +303,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="fas fa-play"></i> Trigger Now
                                     </button>
                                 </div>
-                            ` : '';
+                            ` : `
+                                <div class="scheduled-call-actions">
+                                    <button onclick="deleteUserCall(${call.id})" class="delete-btn" title="Delete Call">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            `;
                             
                             return `<li style="margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 8px;">
                                 <strong>${call.name}</strong> (${call.phone})<br>

@@ -995,7 +995,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${call.id}</td>
                 <td>${call.name}</td>
                 <td>${call.phone}</td>
-                <td>${new Date(call.time).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
+                <td>${new Date(call.scheduledTime || call.time).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>${call.userName || 'N/A'}</td>
                 <td>
@@ -1082,7 +1082,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('phoneNumber').value = call.phone;
             
             // Convert UTC time to local time for the datetime-local input
-            const localTime = new Date(call.time);
+            const localTime = new Date(call.scheduledTime || call.time);
             const year = localTime.getFullYear();
             const month = String(localTime.getMonth() + 1).padStart(2, '0');
             const day = String(localTime.getDate()).padStart(2, '0');
