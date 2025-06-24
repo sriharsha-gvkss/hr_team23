@@ -553,7 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `response_report_${responseId}.docx`;
+            a.download = `response_report_${responseId}.txt`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -1279,7 +1279,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `response_details_${responseId}_${new Date().toISOString().split('T')[0]}.docx`;
+            a.download = `response_details_${responseId}_${new Date().toISOString().split('T')[0]}.txt`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
