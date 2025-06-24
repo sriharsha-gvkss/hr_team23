@@ -13,7 +13,7 @@ const scheduledTime = new Date(istTime.getTime() + 1 * 60 * 1000); // Add 1 minu
 const testCall = {
     id: 'test-ist-' + Date.now(),
     name: 'IST Test User - Fixed Timezone',
-    phone: '+917702315038', // Replace with a real number for testing
+    phone: '+917306396541', // Replace with a real number for testing
     time: scheduledTime.toISOString(),
     completed: false,
     failed: false,
