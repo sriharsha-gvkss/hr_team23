@@ -1205,30 +1205,24 @@ document.addEventListener('DOMContentLoaded', function() {
     window.editUserCall = async function(callId) {
         try {
             console.log(`✏️ Editing call: ${callId}`);
-            
-            // Fetch call details
             const response = await fetch(`/api/calls/${callId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-            
             if (!response.ok) {
-                throw new Error('Failed to fetch call details');
+                if (response.status === 404) {
+                    showNotification('This call no longer exists or was already deleted.', 'error');
+                } else {
+                    throw new Error('Failed to fetch call details');
+                }
+                return;
             }
-            
             const data = await response.json();
             if (!data.success) {
                 throw new Error(data.message || 'Failed to fetch call details');
             }
-            
             const call = data.call;
-            
-            // Show edit modal
             showEditCallModal(call);
-            
         } catch (error) {
-            console.error('❌ Error editing call:', error);
             showNotification('Failed to load call details: ' + error.message, 'error');
         }
     };
@@ -1431,39 +1425,5 @@ document.addEventListener('DOMContentLoaded', function() {
     window.deleteUserCall = async function(callId) {
         try {
             const confirmed = confirm('Are you sure you want to delete this call? This action cannot be undone.');
-            if (!confirmed) {
-                return;
-            }
-            
-            console.log(`🗑️ Deleting call: ${callId}`);
-            
-            const response = await fetch(`/api/calls/${callId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to delete call');
-            }
-            
-            const data = await response.json();
-            if (!data.success) {
-                throw new Error(data.message || 'Failed to delete call');
-            }
-            
-            // Success
-            showNotification('Call deleted successfully!', 'success');
-            // Refresh the calls list
-            statCards[1].click();
-        } catch (error) {
-            console.error('❌ Error deleting call:', error);
-            showNotification('Failed to delete call: ' + error.message, 'error');
-        }
-    };
-
-    // Make functions globally accessible for onclick handlers
-    window.viewResponseDetails = viewResponseDetails;
-    window.loadAllResponses = loadAllResponses;
-}); 
+            if (!confirmed) return;
+            console.log('🗑️ Deleting call:', callId);
