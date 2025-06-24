@@ -274,8 +274,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-calendar-check'></i> Scheduled Calls</div><div class='info-box-content'>You have no scheduled calls.</div>`;
                     } else {
                         const callsList = data.calls.map(call => {
-                            // Format the time for display (IST)
-                            const callTime = new Date(call.time);
+                            // Format the time for display (IST) - use scheduledTime field
+                            const timeField = call.scheduledTime || call.time;
+                            const callTime = new Date(timeField);
                             const formattedTime = callTime.toLocaleString('en-IN', { 
                                 timeZone: 'Asia/Kolkata',
                                 year: 'numeric',
@@ -285,11 +286,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 minute: '2-digit'
                             });
                             
-                            const status = call.completed ? 'Completed' : call.failed ? 'Failed' : 'Pending';
-                            const statusClass = call.completed ? 'completed' : call.failed ? 'failed' : 'pending';
+                            // Use status field instead of completed/failed
+                            const status = call.status || 'Pending';
+                            const statusClass = status === 'completed' ? 'completed' : status === 'failed' ? 'failed' : 'pending';
                             
                             // Action buttons - only show for pending calls
-                            const actionButtons = !call.completed && !call.failed ? `
+                            const actionButtons = status !== 'completed' && status !== 'failed' ? `
                                 <div class="scheduled-call-actions">
                                     <button onclick="editUserCall(${call.id})" class="edit-btn" title="Edit Call">
                                         <i class="fas fa-edit"></i> Edit
@@ -1228,7 +1230,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to show edit call modal
     function showEditCallModal(call) {
         // Convert UTC time to local time for the datetime-local input
-        const localTime = new Date(call.time);
+        // Use scheduledTime field from the call data
+        const timeField = call.scheduledTime || call.time;
+        if (!timeField) {
+            showNotification('Call time data is missing', 'error');
+            return;
+        }
+        
+        const localTime = new Date(timeField);
+        if (isNaN(localTime.getTime())) {
+            showNotification('Invalid call time format', 'error');
+            return;
+        }
+        
         const year = localTime.getFullYear();
         const month = String(localTime.getMonth() + 1).padStart(2, '0');
         const day = String(localTime.getDate()).padStart(2, '0');

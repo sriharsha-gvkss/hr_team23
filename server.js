@@ -1923,19 +1923,19 @@ app.put('/api/calls/:callId', authenticateToken, (req, res) => {
         }
         
         // Don't allow editing completed or failed calls
-        if (call.completed || call.failed) {
+        if (call.status === 'completed' || call.status === 'failed') {
             return res.status(400).json({ 
                 success: false, 
                 message: 'Cannot edit completed or failed calls' 
             });
         }
 
-        // Update call details
+        // Update call details - use scheduledTime to match the data structure
         callsData.calls[callIndex] = {
             ...call,
             name: name.trim(),
             phone: phone.trim(),
-            time: new Date(time).toISOString(),
+            scheduledTime: new Date(time).toISOString(),
             updated_at: new Date().toISOString()
         };
 
