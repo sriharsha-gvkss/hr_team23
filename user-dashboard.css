@@ -774,3 +774,139 @@ body {
         font-size: 0.875rem;
     }
 }
+
+/* Company Section Styles */
+.company-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 1rem 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.company-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.company-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+}
+
+.company-label {
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    white-space: nowrap;
+}
+
+.company-display {
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    min-width: 200px;
+}
+
+.company-input {
+    background: white;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    color: #374151;
+    min-width: 200px;
+    outline: none;
+}
+
+.company-input:focus {
+    border-color: #764ba2;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.company-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.edit-company-btn, .save-company-btn, .cancel-company-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.edit-company-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.edit-company-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.save-company-btn {
+    background: #10b981;
+    color: white;
+}
+
+.save-company-btn:hover {
+    background: #059669;
+    transform: translateY(-1px);
+}
+
+.cancel-company-btn {
+    background: #ef4444;
+    color: white;
+}
+
+.cancel-company-btn:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
+/* Responsive design for company section */
+@media (max-width: 768px) {
+    .company-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .company-info {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .company-label {
+        text-align: center;
+    }
+    
+    .company-display, .company-input {
+        min-width: auto;
+        width: 100%;
+        text-align: center;
+    }
+    
+    .company-actions {
+        justify-content: center;
+    }
+}

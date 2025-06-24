@@ -216,10 +216,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             <input type="text" id="callName" name="callName" required style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 0.25rem;">
                         </div>
                         <div style="margin-bottom: 1rem;">
-                            <label for="callCompany">Company Name</label><br>
-                            <input type="text" id="callCompany" name="callCompany" required style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 0.25rem;">
-                        </div>
-                        <div style="margin-bottom: 1rem;">
                             <label for="callPhone">Phone Number</label><br>
                             <input type="tel" id="callPhone" name="callPhone" required pattern="[0-9\\-\\+\\s\\(\\)]{7,}" style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 0.25rem;">
                         </div>
@@ -237,10 +233,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 scheduleForm.addEventListener('submit', async function(e) {
                     e.preventDefault();
                     const name = document.getElementById('callName').value.trim();
-                    const company = document.getElementById('callCompany').value.trim();
                     const phone = document.getElementById('callPhone').value.trim();
                     const time = document.getElementById('callTime').value;
-                    if (!name || !company || !phone || !time) {
+                    const company = getCurrentCompanyName();
+                    if (!name || !phone || !time) {
                         showNotification('Please fill in all fields', 'error');
                         return;
                     }
@@ -1076,18 +1072,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             " placeholder="Enter name">
                         </div>
                         
-                        <div style="margin-bottom: 1rem;">
-                            <label for="directCallCompany" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Company Name</label>
-                            <input type="text" id="directCallCompany" required style="
-                                width: 100%;
-                                padding: 0.75rem;
-                                border: 1px solid #d1d5db;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                                box-sizing: border-box;
-                            " placeholder="Enter company name">
-                        </div>
-                        
                         <div style="margin-bottom: 1.5rem;">
                             <label for="directCallPhone" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Phone Number</label>
                             <input type="tel" id="directCallPhone" required style="
@@ -1164,10 +1148,9 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         
         const name = document.getElementById('directCallName').value.trim();
-        const company = document.getElementById('directCallCompany').value.trim();
         const phone = document.getElementById('directCallPhone').value.trim();
         
-        if (!name || !company || !phone) {
+        if (!name || !phone) {
             showNotification('Please fill in all fields', 'error');
             return;
         }
@@ -1180,7 +1163,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ name, company, phone })
+                body: JSON.stringify({ name, phone })
             });
             
             const data = await response.json();
@@ -1325,39 +1308,28 @@ document.addEventListener('DOMContentLoaded', function() {
                         <input type="hidden" id="editCallId" value="${call.id}">
                         
                         <div style="margin-bottom: 1rem;">
-                            <label for="editCallName" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Contact Name</label>
-                            <input type="text" id="editCallName" value="${call.name}" required style="
+                            <label for="editCallName" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Name</label>
+                            <input type="text" id="editCallName" required style="
                                 width: 100%;
                                 padding: 0.75rem;
                                 border: 1px solid #d1d5db;
                                 border-radius: 8px;
                                 font-size: 1rem;
                                 box-sizing: border-box;
-                            " placeholder="Enter contact name">
+                            " value="${call.name}">
                         </div>
                         
-                        <div style="margin-bottom: 1rem;">
-                            <label for="editCallCompany" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Company Name</label>
-                            <input type="text" id="editCallCompany" value="${call.company || ''}" required style="
-                                width: 100%;
-                                padding: 0.75rem;
-                                border: 1px solid #d1d5db;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                                box-sizing: border-box;
-                            " placeholder="Enter company name">
-                        </div>
-                        
-                        <div style="margin-bottom: 1rem;">
+                        <div style="margin-bottom: 1.5rem;">
                             <label for="editCallPhone" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Phone Number</label>
-                            <input type="tel" id="editCallPhone" value="${call.phone}" required style="
+                            <input type="tel" id="editCallPhone" required style="
                                 width: 100%;
                                 padding: 0.75rem;
                                 border: 1px solid #d1d5db;
                                 border-radius: 8px;
                                 font-size: 1rem;
                                 box-sizing: border-box;
-                            " placeholder="+1234567890" pattern="[0-9\\-\\+\\s\\(\\)]{7,}">
+                            " value="${call.phone}" pattern="[0-9\\-\\+\\s\\(\\)]{7,}">
+                            <small style="color: #6b7280; font-size: 0.875rem;">Include country code (e.g., +1 for US)</small>
                         </div>
                         
                         <div style="margin-bottom: 1.5rem;">
@@ -1436,11 +1408,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const callId = document.getElementById('editCallId').value;
         const name = document.getElementById('editCallName').value.trim();
-        const company = document.getElementById('editCallCompany').value.trim();
         const phone = document.getElementById('editCallPhone').value.trim();
         const time = document.getElementById('editCallTime').value;
         
-        if (!name || !company || !phone || !time) {
+        if (!name || !phone || !time) {
             showNotification('Please fill in all fields', 'error');
             return;
         }
@@ -1452,7 +1423,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ name, company, phone, time })
+                body: JSON.stringify({ name, phone, time })
             });
             
             const data = await response.json();
@@ -1533,4 +1504,92 @@ document.addEventListener('DOMContentLoaded', function() {
             showNotification('Error triggering call. Please try again.', 'error');
         }
     };
+
+    // Company Name Management
+    let originalCompanyName = '';
+    
+    function initializeCompanySection() {
+        const editBtn = document.getElementById('editCompanyBtn');
+        const saveBtn = document.getElementById('saveCompanyBtn');
+        const cancelBtn = document.getElementById('cancelCompanyBtn');
+        const companyDisplay = document.getElementById('companyDisplay');
+        const companyInput = document.getElementById('companyName');
+        
+        // Load company name from localStorage or set default
+        const savedCompany = localStorage.getItem('userCompanyName') || 'Your Company';
+        companyDisplay.textContent = savedCompany;
+        originalCompanyName = savedCompany;
+        
+        editBtn.addEventListener('click', () => {
+            companyDisplay.style.display = 'none';
+            companyInput.style.display = 'inline-block';
+            companyInput.value = companyDisplay.textContent;
+            editBtn.style.display = 'none';
+            saveBtn.style.display = 'inline-flex';
+            cancelBtn.style.display = 'inline-flex';
+            companyInput.focus();
+        });
+        
+        saveBtn.addEventListener('click', async () => {
+            const newCompanyName = companyInput.value.trim();
+            if (!newCompanyName) {
+                showNotification('Company name cannot be empty', 'error');
+                return;
+            }
+            
+            try {
+                // Save to localStorage
+                localStorage.setItem('userCompanyName', newCompanyName);
+                
+                // Update display
+                companyDisplay.textContent = newCompanyName;
+                originalCompanyName = newCompanyName;
+                
+                // Hide input, show display
+                companyDisplay.style.display = 'inline-block';
+                companyInput.style.display = 'none';
+                editBtn.style.display = 'inline-flex';
+                saveBtn.style.display = 'none';
+                cancelBtn.style.display = 'none';
+                
+                showNotification('Company name updated successfully!', 'success');
+            } catch (error) {
+                showNotification('Failed to update company name', 'error');
+            }
+        });
+        
+        cancelBtn.addEventListener('click', () => {
+            companyDisplay.style.display = 'inline-block';
+            companyInput.style.display = 'none';
+            editBtn.style.display = 'inline-flex';
+            saveBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+            companyInput.value = originalCompanyName;
+        });
+        
+        // Handle Enter key in input
+        companyInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                saveBtn.click();
+            }
+        });
+        
+        // Handle Escape key
+        companyInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                cancelBtn.click();
+            }
+        });
+    }
+    
+    // Get current company name for use in calls
+    function getCurrentCompanyName() {
+        return localStorage.getItem('userCompanyName') || 'Your Company';
+    }
+
+    // Initialize dashboard
+    await refreshUserProfile();
+    initializeCompanySection();
+    
+    // Add event listeners to stat cards
 }); 

@@ -32,6 +32,28 @@
             </div>
         </nav>
 
+        <!-- Company Name Section -->
+        <div class="company-section">
+            <div class="company-container">
+                <div class="company-info">
+                    <label for="companyName" class="company-label">Company Name:</label>
+                    <span id="companyDisplay" class="company-display">Your Company</span>
+                    <input type="text" id="companyName" class="company-input" style="display: none;" placeholder="Enter company name">
+                </div>
+                <div class="company-actions">
+                    <button id="editCompanyBtn" class="edit-company-btn">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button id="saveCompanyBtn" class="save-company-btn" style="display: none;">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    <button id="cancelCompanyBtn" class="cancel-company-btn" style="display: none;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <main class="main-content">
             <div class="welcome-section">
                 <h1 id="welcomeMessage">Welcome, User!</h1>
