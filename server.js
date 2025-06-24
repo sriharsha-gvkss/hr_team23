@@ -554,7 +554,7 @@ app.post('/api/schedule-call', authenticateToken, (req, res) => {
             userId: user.id,
             name,
             phone,
-            time,
+            scheduledTime: time, // Use scheduledTime instead of time
             status: 'Scheduled',
             created_at: new Date().toISOString()
         };
@@ -638,9 +638,16 @@ class CallScheduler {
 
     scheduleCall(callData) {
         try {
-            // Validate callData and scheduledTime
-            if (!callData || !callData.scheduledTime) {
+            // Validate callData and get the time field (support both time and scheduledTime)
+            if (!callData) {
                 console.error(`❌ Invalid call data for scheduling:`, callData);
+                return null;
+            }
+            
+            // Support both 'time' and 'scheduledTime' fields for backward compatibility
+            const timeField = callData.scheduledTime || callData.time;
+            if (!timeField) {
+                console.error(`❌ No time field found for call ${callData.id}:`, callData);
                 return null;
             }
 
@@ -648,11 +655,11 @@ class CallScheduler {
             let callTime;
             
             // If the time is already a Date object, use it
-            if (callData.scheduledTime instanceof Date) {
-                callTime = callData.scheduledTime;
+            if (timeField instanceof Date) {
+                callTime = timeField;
             } else {
                 // If it's a string, parse it as IST time
-                const timeString = callData.scheduledTime;
+                const timeString = timeField;
                 
                 // Validate timeString
                 if (!timeString || typeof timeString !== 'string') {
@@ -691,7 +698,7 @@ class CallScheduler {
             // If call is in the future, schedule it
             if (callTime > now) {
                 const timeUntilCall = callTime.getTime() - now.getTime();
-                const jobId = `call_${callData.id}_${callData.scheduledTime}`;
+                const jobId = `call_${callData.id}_${timeField}`;
                 
                 // Schedule the call
                 const timeoutId = setTimeout(() => {
@@ -806,12 +813,14 @@ class CallScheduler {
                 continue;
             }
 
-            // Parse call time correctly
+            // Parse call time correctly - support both time and scheduledTime fields
             let callTime;
-            if (call.scheduledTime instanceof Date) {
-                callTime = call.scheduledTime;
+            const timeField = call.scheduledTime || call.time;
+            
+            if (timeField instanceof Date) {
+                callTime = timeField;
             } else {
-                const timeString = call.scheduledTime;
+                const timeString = timeField;
                 if (timeString.includes('T') && timeString.includes('Z')) {
                     callTime = new Date(timeString);
                 } else {
