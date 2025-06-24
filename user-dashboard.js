@@ -1219,7 +1219,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            const call = await response.json();
+            const result = await response.json();
+            
+            // Check if the response has the expected structure
+            if (!result.success || !result.call) {
+                showNotification('Invalid call data received from server', 'error');
+                return;
+            }
+            
+            const call = result.call;
             showEditCallModal(call);
         } catch (error) {
             console.error('❌ Error editing call:', error);
@@ -1229,19 +1237,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to show edit call modal
     function showEditCallModal(call) {
+        console.log('📋 Call data received:', call);
+        
         // Convert UTC time to local time for the datetime-local input
         // Use scheduledTime field from the call data
         const timeField = call.scheduledTime || call.time;
+        console.log('⏰ Time field found:', timeField);
+        
         if (!timeField) {
-            showNotification('Call time data is missing', 'error');
+            console.error('❌ No time field found in call data:', call);
+            showNotification('Call time data is missing. Please contact support.', 'error');
             return;
         }
         
         const localTime = new Date(timeField);
         if (isNaN(localTime.getTime())) {
-            showNotification('Invalid call time format', 'error');
+            console.error('❌ Invalid time format:', timeField);
+            showNotification('Invalid call time format. Please contact support.', 'error');
             return;
         }
+        
+        console.log('✅ Parsed time successfully:', localTime);
         
         const year = localTime.getFullYear();
         const month = String(localTime.getMonth() + 1).padStart(2, '0');
@@ -1249,6 +1265,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const hours = String(localTime.getHours()).padStart(2, '0');
         const minutes = String(localTime.getMinutes()).padStart(2, '0');
         const localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+        
+        console.log('📅 Formatted datetime for input:', localDateTime);
         
         const modalHTML = `
             <div id="editCallModal" class="modal-overlay" style="
@@ -1484,4 +1502,4 @@ document.addEventListener('DOMContentLoaded', function() {
             showNotification('Error triggering call. Please try again.', 'error');
         }
     };
-});
+}); 
