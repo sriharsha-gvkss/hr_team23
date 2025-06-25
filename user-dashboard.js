@@ -501,6 +501,32 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
+        // Overall download button for all responses
+        if (userResponses.length > 0) {
+            html += `
+                <div style='margin-bottom: 2rem; text-align: center;'>
+                    <button id="downloadAllResponsesBtn" style="
+                        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                        color: white;
+                        border: none;
+                        padding: 1rem 2rem;
+                        border-radius: 8px;
+                        font-size: 1rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(0, 0, 0, 0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0, 0, 0, 0.1)'">
+                        <i class="fas fa-download"></i>
+                        Download All Responses (${userResponses.length})
+                    </button>
+                </div>
+            `;
+        }
+        
         // Recent responses section
         if (userResponses.length > 0) {
             html += `
@@ -671,607 +697,59 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+        
+        // Add event listener for download all responses button
+        const downloadAllResponsesBtn = document.getElementById('downloadAllResponsesBtn');
+        if (downloadAllResponsesBtn) {
+            downloadAllResponsesBtn.addEventListener('click', async () => {
+                try {
+                    console.log('📥 Downloading all user responses...');
+                    
+                    // Show loading state
+                    downloadAllResponsesBtn.disabled = true;
+                    downloadAllResponsesBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
+                    
+                    const response = await fetch('/api/download-user-responses', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Failed to download all responses');
+                    }
+                    
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const timestamp = new Date().toISOString().split('T')[0];
+                    a.download = `all_my_responses_${timestamp}.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    console.log('✅ All user responses downloaded successfully');
+                    showNotification('All responses downloaded successfully!', 'success');
+                    
+                } catch (error) {
+                    console.error('❌ Error downloading all responses:', error);
+                    showNotification('Failed to download all responses: ' + error.message, 'error');
+                } finally {
+                    // Reset button state
+                    downloadAllResponsesBtn.disabled = false;
+                    downloadAllResponsesBtn.innerHTML = `<i class="fas fa-download"></i> Download All Responses (${userResponses.length})`;
+                }
+            });
+        }
     }
 
     // Helper to get current user ID from token
     function getCurrentUserId() {
         try {
             const token = localStorage.getItem('token');
-            if (!token) return null;
-            
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return payload.userId;
-        } catch (err) {
-            console.error('Error parsing token:', err);
-            return null;
-        }
-    }
-
-    // Function to view response details with proper modal implementation
-    async function viewResponseDetails(responseId) {
-        try {
-            console.log('🔍 Fetching response details for:', responseId);
-            console.log('📋 Response ID type:', typeof responseId);
-            
-            // Validate responseId
-            if (!responseId || responseId === 'undefined' || responseId === 'null') {
-                console.error('❌ Invalid response ID:', responseId);
-                showNotification('Invalid response ID. Please try again.', 'error');
-                return;
-            }
-            
-            // Fetch the specific response details
-            const response = await fetch(`/api/responses/${responseId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to fetch response details');
-            }
-            
-            const data = await response.json();
-            console.log('📊 Response data:', data);
-            
-            if (!data.success || !data.response) {
-                throw new Error('Invalid response data');
-            }
-            
-            const responseData = data.response;
-            
-            // Load questions to match with answers
-            const questionsResponse = await fetch('/api/questions', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const questionsData = await questionsResponse.json();
-            const questions = questionsData.questions || [];
-            
-            // Create and show modal
-            showResponseDetailsModal(responseData, questions);
-            
-        } catch (error) {
-            console.error('Error fetching response details:', error);
-            showNotification('Failed to load response details. Please try again.', 'error');
-        }
-    }
-
-    // Function to show response details modal
-    function showResponseDetailsModal(responseData, questions) {
-        // Remove existing modal if any
-        const existingModal = document.getElementById('userResponseModal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
-        // Create modal HTML
-        const modalHTML = `
-            <div id="userResponseModal" class="modal-overlay" style="
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 1000;
-            ">
-                <div class="modal-content" style="
-                    background: white;
-                    padding: 2rem;
-                    border-radius: 12px;
-                    max-width: 600px;
-                    width: 90%;
-                    max-height: 80vh;
-                    overflow-y: auto;
-                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-                ">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                        <h2 style="margin: 0; color: #1f2937; font-size: 1.5rem;">
-                            <i class="fas fa-eye" style="color: #667eea; margin-right: 0.5rem;"></i>
-                            Call Response Details
-                        </h2>
-                        <button id="closeUserResponseModal" style="
-                            background: none;
-                            border: none;
-                            font-size: 1.5rem;
-                            cursor: pointer;
-                            color: #6b7280;
-                        ">&times;</button>
-                    </div>
-                    
-                    <div style="margin-bottom: 1.5rem;">
-                        <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem;">
-                                <div>
-                                    <strong>Response ID:</strong> ${responseData.id || 'N/A'}
-                                </div>
-                                <div>
-                                    <strong>Call SID:</strong> ${responseData.callSid || 'N/A'}
-                                </div>
-                                <div>
-                                    <strong>Date:</strong> ${new Date(responseData.timestamp).toLocaleString('en-IN')}
-                                </div>
-                                <div>
-                                    <strong>Questions Answered:</strong> ${responseData.answers?.length || 0}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div id="responseQuestionsList">
-                        ${generateQuestionsHTML(responseData, questions)}
-                    </div>
-                    
-                    <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; gap: 1rem;">
-                        <button id="downloadUserResponseBtn" style="
-                            background: #667eea;
-                            color: white;
-                            border: none;
-                            padding: 0.75rem 1.5rem;
-                            border-radius: 8px;
-                            font-size: 1rem;
-                            font-weight: 600;
-                            cursor: pointer;
-                            display: flex;
-                            align-items: center;
-                            gap: 0.5rem;
-                        ">
-                            <i class="fas fa-download"></i> Download Response
-                        </button>
-                        <button id="closeUserResponseModalBtn" style="
-                            background: #6b7280;
-                            color: white;
-                            border: none;
-                            padding: 0.75rem 1.5rem;
-                            border-radius: 8px;
-                            font-size: 1rem;
-                            font-weight: 600;
-                            cursor: pointer;
-                        ">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Add modal to page
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        
-        // Add event listeners
-        document.getElementById('closeUserResponseModal').addEventListener('click', closeUserResponseModal);
-        document.getElementById('closeUserResponseModalBtn').addEventListener('click', closeUserResponseModal);
-        document.getElementById('downloadUserResponseBtn').addEventListener('click', () => downloadUserResponseDetails(responseData.id));
-        
-        // Close modal when clicking outside
-        document.getElementById('userResponseModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeUserResponseModal();
-            }
-        });
-    }
-
-    // Function to generate questions HTML
-    function generateQuestionsHTML(responseData, questions) {
-        if (!responseData.answers || responseData.answers.length === 0) {
-            return '<div style="text-align: center; color: #6b7280; padding: 2rem;">No responses recorded for this call.</div>';
-        }
-        
-        let html = '<h3 style="margin: 0 0 1rem 0; color: #1f2937;">Questions & Answers</h3>';
-        
-        responseData.answers.forEach((answer, index) => {
-            const question = questions[index] || `Question ${index + 1}`;
-            const confidence = responseData.confidences && responseData.confidences[index] 
-                ? (responseData.confidences[index] * 100).toFixed(1) 
-                : 'N/A';
-            
-            const confidenceColor = confidence !== 'N/A' 
-                ? (confidence >= 80 ? '#10b981' : confidence >= 60 ? '#f59e0b' : '#ef4444')
-                : '#6b7280';
-            
-            html += `
-                <div style="
-                    background: #f9fafb;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 8px;
-                    padding: 1rem;
-                    margin-bottom: 1rem;
-                ">
-                    <div style="margin-bottom: 0.5rem;">
-                        <strong style="color: #374151;">Q${index + 1}:</strong> ${question}
-                    </div>
-                    <div style="margin-bottom: 0.5rem;">
-                        <strong style="color: #374151;">Answer:</strong> 
-                        <span style="color: #6b7280;">${answer || 'No response recorded'}</span>
-                    </div>
-                    <div>
-                        <strong style="color: #374151;">Confidence:</strong> 
-                        <span style="color: ${confidenceColor}; font-weight: 600;">
-                            ${confidence}${confidence !== 'N/A' ? '%' : ''}
-                        </span>
-                    </div>
-                </div>
-            `;
-        });
-        
-        return html;
-    }
-
-    // Function to close response modal
-    function closeUserResponseModal() {
-        const modal = document.getElementById('userResponseModal');
-        if (modal) {
-            modal.remove();
-        }
-    }
-
-    // Function to download user response details
-    async function downloadUserResponseDetails(responseId) {
-        try {
-            console.log(`📥 Downloading user response details for ${responseId}...`);
-            
-            const response = await fetch(`/api/download-response-report/${responseId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Download failed');
-            }
-            
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `my_response_details_${responseId}_${new Date().toISOString().split('T')[0]}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            
-            console.log('✅ User response details downloaded successfully');
-            showNotification('Response details downloaded successfully!', 'success');
-        } catch (error) {
-            console.error('❌ Error downloading user response details:', error);
-            showNotification('Failed to download response details: ' + error.message, 'error');
-        }
-    }
-
-    // Function to load all responses (placeholder - can be expanded)
-    function loadAllResponses() {
-        showNotification('Loading all responses...', 'info');
-    }
-
-    // Helper to render the questions management UI
-    function renderQuestionsBox(questions) {
-        let html = `<div style='margin-bottom:1rem; display: flex; gap: 0.5rem; align-items: center;'>
-            <button id='addQuestionBtn' style='background: #667eea; color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;'>
-                <i class="fas fa-plus"></i> Add Question
-            </button>
-            <button id='saveAllQuestionsBtn' style='background: #10b981; color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;'>
-                <i class="fas fa-save"></i> Save All
-            </button>
-        </div>`;
-        
-        if (questions.length === 0) {
-            html += `<div style='color: #6b7280; font-style: italic; margin: 1rem 0;'>No questions defined. Add some questions to get started.</div>`;
-        } else {
-            html += `<div id='questionsList'>`;
-            questions.forEach((q, idx) => {
-                html += `<div style='margin-bottom:0.8rem; padding: 0.8rem; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb;'>
-                    <div style='display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;'>
-                        <span style='font-weight: 600; color: #374151;'>${idx + 1}.</span>
-                        <input type='text' value="${q}" data-idx='${idx}' class='question-input' style='flex: 1; padding: 0.5rem; border-radius: 6px; border: 1px solid #d1d5db; font-size: 0.9rem;' placeholder='Enter question text...'>
-                    </div>
-                    <div style='display: flex; gap: 0.5rem; justify-content: flex-end;'>
-                        <button class='deleteQuestionBtn' data-idx='${idx}' style='background: #ef4444; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;'>
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
-                    </div>
-                </div>`;
-            });
-            html += `</div>`;
-        }
-        
-        infoBox.innerHTML = `<div class='info-box-title'><i class='fas fa-question'></i> Manage Questions</div><div class='info-box-content'>${html}</div>`;
-
-        // Add event listeners
-        const addQuestionBtn = document.getElementById('addQuestionBtn');
-        const saveAllQuestionsBtn = document.getElementById('saveAllQuestionsBtn');
-        
-        if (addQuestionBtn) {
-            addQuestionBtn.onclick = () => {
-                const updated = [...questions, "New question"];
-                renderQuestionsBox(updated);
-            };
-        }
-        
-        if (saveAllQuestionsBtn) {
-            saveAllQuestionsBtn.onclick = async () => {
-                const questionInputs = document.querySelectorAll('.question-input');
-                const updatedQuestions = Array.from(questionInputs).map(input => input.value.trim()).filter(q => q !== '');
-                
-                if (updatedQuestions.length === 0) {
-                    showNotification('Please add at least one question before saving.', 'error');
-                    return;
-                }
-                
-                await updateQuestions(updatedQuestions);
-            };
-        }
-        
-        document.querySelectorAll('.deleteQuestionBtn').forEach(btn => {
-            btn.onclick = async (e) => {
-                const confirmed = confirm('Are you sure you want to delete this question?');
-                if (confirmed) {
-                    const idx = parseInt(btn.dataset.idx);
-                    const updated = questions.filter((_, i) => i !== idx);
-                    await updateQuestions(updated);
-                }
-            };
-        });
-    }
-
-    // Helper to update questions via backend
-    async function updateQuestions(newQuestions) {
-        try {
-            const response = await fetch('/api/questions', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ questions: newQuestions })
-            });
-            const data = await response.json();
-            if (response.ok && data.success) {
-                renderQuestionsBox(data.questions);
-                showNotification('Questions updated successfully!', 'success');
-            } else {
-                showNotification(data.message || 'Failed to update questions', 'error');
-            }
-        } catch (err) {
-            console.error('Error updating questions:', err);
-            showNotification('Network error. Please try again.', 'error');
-        }
-    }
-
-    // Add event listener for Contact Admin button in navbar
-    const contactAdminBtn = document.getElementById('contactAdminBtn');
-    if (contactAdminBtn) {
-        contactAdminBtn.addEventListener('click', function() {
-            showNotification('admin@example.com | +1 234 567 890', 'info');
-        });
-    }
-
-    // Direct Call button functionality
-    document.getElementById('directCallBtn').addEventListener('click', function() {
-        showDirectCallModal();
-    });
-
-    // Function to show direct call modal
-    function showDirectCallModal() {
-        // Create modal HTML
-        const modalHTML = `
-            <div id="directCallModal" class="modal-overlay" style="
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 1000;
-            ">
-                <div class="modal-content" style="
-                    background: white;
-                    padding: 2rem;
-                    border-radius: 12px;
-                    max-width: 400px;
-                    width: 90%;
-                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-                ">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                        <h2 style="margin: 0; color: #1f2937; font-size: 1.5rem;">
-                            <i class="fas fa-phone" style="color: #10b981; margin-right: 0.5rem;"></i>
-                            Make Direct Call
-                        </h2>
-                        <button id="closeDirectCallModal" style="
-                            background: none;
-                            border: none;
-                            font-size: 1.5rem;
-                            cursor: pointer;
-                            color: #6b7280;
-                        ">&times;</button>
-                    </div>
-                    
-                    <form id="directCallForm">
-                        <div style="margin-bottom: 1rem;">
-                            <label for="directCallName" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Name</label>
-                            <input type="text" id="directCallName" required style="
-                                width: 100%;
-                                padding: 0.75rem;
-                                border: 1px solid #d1d5db;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                                box-sizing: border-box;
-                            " placeholder="Enter name">
-                        </div>
-                        
-                        <div style="margin-bottom: 1.5rem;">
-                            <label for="directCallPhone" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Phone Number</label>
-                            <input type="tel" id="directCallPhone" required style="
-                                width: 100%;
-                                padding: 0.75rem;
-                                border: 1px solid #d1d5db;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                                box-sizing: border-box;
-                            " placeholder="+1234567890" pattern="[0-9\\-\\+\\s\\(\\)]{7,}">
-                            <small style="color: #6b7280; font-size: 0.875rem;">Include country code (e.g., +1 for US)</small>
-                        </div>
-                        
-                        <div style="display: flex; gap: 1rem;">
-                            <button type="submit" style="
-                                flex: 1;
-                                background: #10b981;
-                                color: white;
-                                border: none;
-                                padding: 0.75rem;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                                font-weight: 600;
-                                cursor: pointer;
-                            ">
-                                <i class="fas fa-phone" style="margin-right: 0.5rem;"></i>
-                                Make Call
-                            </button>
-                            <button type="button" id="cancelDirectCall" style="
-                                flex: 1;
-                                background: #6b7280;
-                                color: white;
-                                border: none;
-                                padding: 0.75rem;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                                font-weight: 600;
-                                cursor: pointer;
-                            ">
-                                Cancel
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-        
-        // Add modal to page
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        
-        // Add event listeners
-        document.getElementById('closeDirectCallModal').addEventListener('click', closeDirectCallModal);
-        document.getElementById('cancelDirectCall').addEventListener('click', closeDirectCallModal);
-        document.getElementById('directCallForm').addEventListener('submit', handleDirectCall);
-        
-        // Close modal when clicking outside
-        document.getElementById('directCallModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeDirectCallModal();
-            }
-        });
-    }
-    
-    // Function to close direct call modal
-    function closeDirectCallModal() {
-        const modal = document.getElementById('directCallModal');
-        if (modal) {
-            modal.remove();
-        }
-    }
-    
-    // Function to handle direct call submission
-    async function handleDirectCall(e) {
-        e.preventDefault();
-        
-        const name = document.getElementById('directCallName').value.trim();
-        const phone = document.getElementById('directCallPhone').value.trim();
-        const company = getCurrentCompanyName();
-        
-        if (!name || !phone) {
-            showNotification('Please fill in all fields', 'error');
-            return;
-        }
-        
-        try {
-            // Create a call record for immediate execution
-            const response = await fetch('/api/direct-call', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ name, company, phone })
-            });
-            
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                showNotification('Call initiated successfully!', 'success');
-                closeDirectCallModal();
-                // Refresh credits display after successful call
-                refreshUserProfile();
-            } else {
-                if (response.status === 402) {
-                    // Insufficient credits error
-                    showNotification(`Insufficient credits. You have ${data.currentCredits} credits. You need 1 credit to make a direct call.`, 'error');
-                    // Refresh credits display
-                    refreshUserProfile();
-                } else {
-                    showNotification(data.message || 'Failed to make call', 'error');
-                }
-            }
-        } catch (err) {
-            showNotification('Network error. Please try again.', 'error');
-        }
-    }
-
-    // Function to trigger a call manually
-    window.triggerCall = async function(callId) {
-        try {
-            const response = await fetch(`/api/trigger-call/${callId}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            const data = await response.json();
-            if (response.ok && data.success) {
-                showNotification('Call triggered successfully!', 'success');
-                // Refresh the calls list
-                statCards[1].click();
-            } else {
-                showNotification(data.message || 'Failed to trigger call', 'error');
-            }
-        } catch (err) {
-            showNotification('Network error. Please try again.', 'error');
-        }
-    };
-
-    // Function to edit a user call
-    window.editUserCall = async function(callId) {
-        try {
-            console.log('✏️ Editing call:', callId);
-            
-            const response = await fetch(`/api/calls/${callId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (!response.ok) {
-                if (response.status === 404) {
-                    showNotification('This call no longer exists or was already deleted.', 'error');
-                } else {
-                    throw new Error('Failed to fetch call details');
-                }
-                return;
-            }
-            
-            const result = await response.json();
-            
-            // Check if the response has the expected structure
-            if (!result.success || !result.call) {
-                showNotification('Invalid call data received from server', 'error');
-                return;
-            }
-            
-            const call = result.call;
-            showEditCallModal(call);
-        } catch (error) {
             console.error('❌ Error editing call:', error);
             showNotification('Error loading call details. Please try again.', 'error');
         }

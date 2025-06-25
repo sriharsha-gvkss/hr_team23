@@ -2848,3 +2848,94 @@ app.listen(PORT, () => {
     console.log('\nPassword Reset: Token-based system active');
     console.log('   Reset tokens expire in 15 minutes');
 });
+
+// Download all responses for a specific user
+app.get('/api/download-user-responses', authenticateToken, async (req, res) => {
+    try {
+        const responses = loadResponses();
+        const callsData = loadCalls();
+        const usersData = loadUsers();
+        const questions = loadQuestions();
+        
+        // Filter responses for the current user
+        const userResponses = responses.filter(r => {
+            const call = callsData.calls.find(c => c.twilio_call_sid === r.callSid);
+            return call && call.userId === req.user.userId;
+        });
+        
+        if (userResponses.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'No responses found for this user' 
+            });
+        }
+        
+        // Create comprehensive text content
+        let textContent = '';
+        
+        // Header
+        textContent += 'ALL USER RESPONSES REPORT\n';
+        textContent += '=========================\n\n';
+        
+        // User information
+        const user = usersData.users.find(u => u.id === req.user.userId);
+        textContent += 'USER INFORMATION:\n';
+        textContent += `Name: ${user?.name || 'N/A'}\n`;
+        textContent += `Email: ${user?.email || 'N/A'}\n`;
+        textContent += `Total Responses: ${userResponses.length}\n`;
+        textContent += `Report Generated: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\n\n`;
+        
+        // Process each response
+        userResponses.forEach((response, index) => {
+            const call = callsData.calls.find(c => c.twilio_call_sid === response.callSid);
+            
+            textContent += `RESPONSE ${index + 1}\n`;
+            textContent += `${'='.repeat(50)}\n\n`;
+            
+            // Response details
+            textContent += 'RESPONSE DETAILS:\n';
+            textContent += `Response ID: ${response.id}\n`;
+            textContent += `Call SID: ${response.callSid}\n`;
+            textContent += `Contact Name: ${call ? call.name : 'N/A'}\n`;
+            textContent += `Contact Phone: ${call ? call.phone : 'N/A'}\n`;
+            textContent += `Company: ${call ? call.company : 'N/A'}\n`;
+            textContent += `Date: ${new Date(response.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\n`;
+            textContent += `Questions Answered: ${response.answers?.length || 0}\n\n`;
+            
+            // Questions and answers
+            if (response.answers && response.answers.length > 0) {
+                textContent += 'QUESTIONS & ANSWERS:\n';
+                textContent += `${'-'.repeat(30)}\n\n`;
+                
+                response.answers.forEach((answer, qIndex) => {
+                    const question = questions[qIndex] || `Question ${qIndex + 1}`;
+                    const confidence = response.confidences && response.confidences[qIndex] 
+                        ? (response.confidences[qIndex] * 100).toFixed(1) 
+                        : 'N/A';
+                    
+                    textContent += `Q${qIndex + 1}: ${question}\n`;
+                    textContent += `Answer: ${answer || 'No response recorded'}\n`;
+                    textContent += `Confidence: ${confidence}${confidence !== 'N/A' ? '%' : ''}\n\n`;
+                });
+            } else {
+                textContent += 'No questions and answers recorded for this response.\n\n';
+            }
+            
+            textContent += '\n';
+        });
+        
+        // Set response headers
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Disposition', `attachment; filename="all_user_responses_${req.user.userId}_${new Date().toISOString().split('T')[0]}.txt"`);
+        
+        // Send the response
+        res.send(textContent);
+        
+    } catch (error) {
+        console.error('Error downloading user responses:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error while downloading responses' 
+        });
+    }
+});
