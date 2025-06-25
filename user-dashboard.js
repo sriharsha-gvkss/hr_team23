@@ -1404,10 +1404,32 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div style='text-align: center; padding: 2rem; color: #6b7280;'>
                         <i class='fas fa-question-circle' style='font-size: 3rem; margin-bottom: 1rem; display: block;'></i>
                         <h3 style='margin: 0 0 0.5rem 0;'>No Questions Available</h3>
-                        <p style='margin: 0;'>No questions have been configured yet. Please contact your administrator.</p>
+                        <p style='margin: 0;'>No questions have been configured yet.</p>
+                        <button id="addFirstQuestionBtn" style="
+                            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                            color: white;
+                            border: none;
+                            padding: 0.75rem 1.5rem;
+                            border-radius: 8px;
+                            font-size: 1rem;
+                            font-weight: 600;
+                            cursor: pointer;
+                            margin-top: 1rem;
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 0.5rem;
+                        ">
+                            <i class="fas fa-plus"></i>
+                            Add First Question
+                        </button>
                     </div>
                 </div>
             `;
+            
+            // Add event listener for the first question button
+            document.getElementById('addFirstQuestionBtn').addEventListener('click', () => {
+                showAddQuestionModal();
+            });
             return;
         }
 
@@ -1416,9 +1438,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 <i class='fas fa-question'></i> Manage Questions
             </div>
             <div class='info-box-content'>
-                <div style='margin-bottom: 1.5rem;'>
-                    <h3 style='margin: 0 0 1rem 0; color: #1f2937;'>📝 Current Questions</h3>
-                    <p style='color: #6b7280; margin-bottom: 1rem;'>These are the questions that will be asked during your calls:</p>
+                <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;'>
+                    <div>
+                        <h3 style='margin: 0 0 0.5rem 0; color: #1f2937;'>📝 Current Questions</h3>
+                        <p style='color: #6b7280; margin: 0;'>These are the questions that will be asked during your calls:</p>
+                    </div>
+                    <button id="addQuestionBtn" style="
+                        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                        color: white;
+                        border: none;
+                        padding: 0.75rem 1.5rem;
+                        border-radius: 8px;
+                        font-size: 1rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(0, 0, 0, 0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0, 0, 0, 0.1)'">
+                        <i class="fas fa-plus"></i>
+                        Add Question
+                    </button>
                 </div>
                 
                 <div style='max-height: 400px; overflow-y: auto; margin-bottom: 1.5rem;'>
@@ -1455,8 +1497,44 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div style="font-weight: 500; color: #1f2937; margin-bottom: 0.25rem;">
                                 ${question}
                             </div>
-                            <div style="font-size: 0.875rem; color: #6b7280;">
+                            <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.75rem;">
                                 Question ${index + 1} of ${questions.length}
+                            </div>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button onclick="editQuestion(${index})" style="
+                                    background: #f59e0b;
+                                    color: white;
+                                    border: none;
+                                    padding: 0.5rem 1rem;
+                                    border-radius: 6px;
+                                    font-size: 0.875rem;
+                                    font-weight: 500;
+                                    cursor: pointer;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 0.25rem;
+                                    transition: all 0.2s ease;
+                                " onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'">
+                                    <i class="fas fa-edit"></i>
+                                    Edit
+                                </button>
+                                <button onclick="deleteQuestion(${index})" style="
+                                    background: #ef4444;
+                                    color: white;
+                                    border: none;
+                                    padding: 0.5rem 1rem;
+                                    border-radius: 6px;
+                                    font-size: 0.875rem;
+                                    font-weight: 500;
+                                    cursor: pointer;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 0.25rem;
+                                    transition: all 0.2s ease;
+                                " onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+                                    <i class="fas fa-trash"></i>
+                                    Delete
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1506,5 +1584,413 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         infoBox.innerHTML = html;
+        
+        // Add event listener for the add question button
+        document.getElementById('addQuestionBtn').addEventListener('click', () => {
+            showAddQuestionModal();
+        });
     }
+
+    // Function to show add question modal
+    function showAddQuestionModal() {
+        const modalHTML = `
+            <div id="addQuestionModal" class="modal-overlay" style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            ">
+                <div class="modal-content" style="
+                    background: white;
+                    padding: 2rem;
+                    border-radius: 12px;
+                    max-width: 500px;
+                    width: 90%;
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h2 style="margin: 0; color: #1f2937; font-size: 1.5rem;">
+                            <i class="fas fa-plus" style="color: #4facfe; margin-right: 0.5rem;"></i>
+                            Add New Question
+                        </h2>
+                        <button id="closeAddQuestionModal" style="
+                            background: none;
+                            border: none;
+                            font-size: 1.5rem;
+                            cursor: pointer;
+                            color: #6b7280;
+                        ">&times;</button>
+                    </div>
+                    
+                    <form id="addQuestionForm">
+                        <div style="margin-bottom: 1.5rem;">
+                            <label for="newQuestionText" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Question Text</label>
+                            <textarea id="newQuestionText" required style="
+                                width: 100%;
+                                padding: 0.75rem;
+                                border: 1px solid #d1d5db;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                box-sizing: border-box;
+                                min-height: 100px;
+                                resize: vertical;
+                            " placeholder="Enter your question here..."></textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem;">
+                            <button type="submit" style="
+                                flex: 1;
+                                background: #4facfe;
+                                color: white;
+                                border: none;
+                                padding: 0.75rem;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                font-weight: 600;
+                                cursor: pointer;
+                            ">
+                                <i class="fas fa-plus" style="margin-right: 0.5rem;"></i>
+                                Add Question
+                            </button>
+                            <button type="button" id="cancelAddQuestion" style="
+                                flex: 1;
+                                background: #6b7280;
+                                color: white;
+                                border: none;
+                                padding: 0.75rem;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                font-weight: 600;
+                                cursor: pointer;
+                            ">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Add event listeners
+        document.getElementById('closeAddQuestionModal').addEventListener('click', closeAddQuestionModal);
+        document.getElementById('cancelAddQuestion').addEventListener('click', closeAddQuestionModal);
+        document.getElementById('addQuestionForm').addEventListener('submit', handleAddQuestion);
+        
+        // Close modal when clicking outside
+        document.getElementById('addQuestionModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAddQuestionModal();
+            }
+        });
+    }
+
+    // Function to close add question modal
+    function closeAddQuestionModal() {
+        const modal = document.getElementById('addQuestionModal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    // Function to handle add question submission
+    async function handleAddQuestion(e) {
+        e.preventDefault();
+        
+        const questionText = document.getElementById('newQuestionText').value.trim();
+        
+        if (!questionText) {
+            showNotification('Please enter a question', 'error');
+            return;
+        }
+        
+        try {
+            // First, get current questions
+            const response = await fetch('/api/questions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to load current questions');
+            }
+            
+            const currentQuestions = data.questions || [];
+            const updatedQuestions = [...currentQuestions, questionText];
+            
+            // Update questions
+            const updateResponse = await fetch('/api/questions', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ questions: updatedQuestions })
+            });
+            
+            const updateData = await updateResponse.json();
+            
+            if (updateResponse.ok && updateData.success) {
+                showNotification('Question added successfully!', 'success');
+                closeAddQuestionModal();
+                // Refresh the questions display
+                renderQuestionsBox(updateData.questions);
+            } else {
+                throw new Error(updateData.message || 'Failed to add question');
+            }
+        } catch (error) {
+            console.error('Error adding question:', error);
+            showNotification('Failed to add question: ' + error.message, 'error');
+        }
+    }
+
+    // Function to edit question
+    window.editQuestion = async function(index) {
+        try {
+            // Get current questions
+            const response = await fetch('/api/questions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to load questions');
+            }
+            
+            const questions = data.questions || [];
+            const question = questions[index];
+            
+            if (!question) {
+                showNotification('Question not found', 'error');
+                return;
+            }
+            
+            showEditQuestionModal(index, question);
+        } catch (error) {
+            console.error('Error loading question for editing:', error);
+            showNotification('Failed to load question: ' + error.message, 'error');
+        }
+    };
+
+    // Function to show edit question modal
+    function showEditQuestionModal(index, questionText) {
+        const modalHTML = `
+            <div id="editQuestionModal" class="modal-overlay" style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            ">
+                <div class="modal-content" style="
+                    background: white;
+                    padding: 2rem;
+                    border-radius: 12px;
+                    max-width: 500px;
+                    width: 90%;
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h2 style="margin: 0; color: #1f2937; font-size: 1.5rem;">
+                            <i class="fas fa-edit" style="color: #f59e0b; margin-right: 0.5rem;"></i>
+                            Edit Question ${index + 1}
+                        </h2>
+                        <button id="closeEditQuestionModal" style="
+                            background: none;
+                            border: none;
+                            font-size: 1.5rem;
+                            cursor: pointer;
+                            color: #6b7280;
+                        ">&times;</button>
+                    </div>
+                    
+                    <form id="editQuestionForm">
+                        <input type="hidden" id="editQuestionIndex" value="${index}">
+                        
+                        <div style="margin-bottom: 1.5rem;">
+                            <label for="editQuestionText" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Question Text</label>
+                            <textarea id="editQuestionText" required style="
+                                width: 100%;
+                                padding: 0.75rem;
+                                border: 1px solid #d1d5db;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                box-sizing: border-box;
+                                min-height: 100px;
+                                resize: vertical;
+                            ">${questionText}</textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem;">
+                            <button type="submit" style="
+                                flex: 1;
+                                background: #f59e0b;
+                                color: white;
+                                border: none;
+                                padding: 0.75rem;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                font-weight: 600;
+                                cursor: pointer;
+                            ">
+                                <i class="fas fa-save" style="margin-right: 0.5rem;"></i>
+                                Update Question
+                            </button>
+                            <button type="button" id="cancelEditQuestion" style="
+                                flex: 1;
+                                background: #6b7280;
+                                color: white;
+                                border: none;
+                                padding: 0.75rem;
+                                border-radius: 8px;
+                                font-size: 1rem;
+                                font-weight: 600;
+                                cursor: pointer;
+                            ">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Add event listeners
+        document.getElementById('closeEditQuestionModal').addEventListener('click', closeEditQuestionModal);
+        document.getElementById('cancelEditQuestion').addEventListener('click', closeEditQuestionModal);
+        document.getElementById('editQuestionForm').addEventListener('submit', handleEditQuestion);
+        
+        // Close modal when clicking outside
+        document.getElementById('editQuestionModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditQuestionModal();
+            }
+        });
+    }
+
+    // Function to close edit question modal
+    function closeEditQuestionModal() {
+        const modal = document.getElementById('editQuestionModal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    // Function to handle edit question submission
+    async function handleEditQuestion(e) {
+        e.preventDefault();
+        
+        const index = parseInt(document.getElementById('editQuestionIndex').value);
+        const questionText = document.getElementById('editQuestionText').value.trim();
+        
+        if (!questionText) {
+            showNotification('Please enter a question', 'error');
+            return;
+        }
+        
+        try {
+            // Get current questions
+            const response = await fetch('/api/questions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to load questions');
+            }
+            
+            const questions = data.questions || [];
+            questions[index] = questionText;
+            
+            // Update questions
+            const updateResponse = await fetch('/api/questions', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ questions: questions })
+            });
+            
+            const updateData = await updateResponse.json();
+            
+            if (updateResponse.ok && updateData.success) {
+                showNotification('Question updated successfully!', 'success');
+                closeEditQuestionModal();
+                // Refresh the questions display
+                renderQuestionsBox(updateData.questions);
+            } else {
+                throw new Error(updateData.message || 'Failed to update question');
+            }
+        } catch (error) {
+            console.error('Error updating question:', error);
+            showNotification('Failed to update question: ' + error.message, 'error');
+        }
+    }
+
+    // Function to delete question
+    window.deleteQuestion = async function(index) {
+        if (!confirm(`Are you sure you want to delete question ${index + 1}?`)) {
+            return;
+        }
+        
+        try {
+            // Get current questions
+            const response = await fetch('/api/questions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to load questions');
+            }
+            
+            const questions = data.questions || [];
+            const updatedQuestions = questions.filter((_, i) => i !== index);
+            
+            if (updatedQuestions.length === 0) {
+                showNotification('Cannot delete the last question. At least one question is required.', 'error');
+                return;
+            }
+            
+            // Update questions
+            const updateResponse = await fetch('/api/questions', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ questions: updatedQuestions })
+            });
+            
+            const updateData = await updateResponse.json();
+            
+            if (updateResponse.ok && updateData.success) {
+                showNotification('Question deleted successfully!', 'success');
+                // Refresh the questions display
+                renderQuestionsBox(updateData.questions);
+            } else {
+                throw new Error(updateData.message || 'Failed to delete question');
+            }
+        } catch (error) {
+            console.error('Error deleting question:', error);
+            showNotification('Failed to delete question: ' + error.message, 'error');
+        }
+    };
 }); 
