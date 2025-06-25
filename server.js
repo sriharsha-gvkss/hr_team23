@@ -1196,6 +1196,15 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         const statusCallbackUrl = `${publicUrl}/call-status`;
         console.log(`Making direct call to ${name} (${phone}) at ${twimlUrl}`);
         
+        // Debug Twilio configuration
+        console.log('=== Twilio Debug Info ===');
+        console.log('TWILIO_ACCOUNT_SID:', TWILIO_ACCOUNT_SID ? 'SET' : 'NOT SET');
+        console.log('TWILIO_AUTH_TOKEN:', TWILIO_AUTH_TOKEN ? 'SET' : 'NOT SET');
+        console.log('TWILIO_PHONE_NUMBER:', TWILIO_PHONE_NUMBER);
+        console.log('twilioClient:', twilioClient ? 'INITIALIZED' : 'NOT INITIALIZED');
+        console.log('Account SID length:', TWILIO_ACCOUNT_SID ? TWILIO_ACCOUNT_SID.length : 0);
+        console.log('Auth Token length:', TWILIO_AUTH_TOKEN ? TWILIO_AUTH_TOKEN.length : 0);
+        
         // Make the call immediately
         const call = await twilioClient.calls.create({
             url: twimlUrl,
