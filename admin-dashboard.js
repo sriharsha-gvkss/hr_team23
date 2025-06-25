@@ -900,7 +900,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // View transcript details
     function viewTranscript(transcriptId) {
         // This would open a modal with detailed transcript view
-        alert(`Viewing transcript ${transcriptId} - Feature coming soon!`);
+        console.log(`Viewing transcript ${transcriptId}`);
     }
 
     // Download individual transcript report

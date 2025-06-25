@@ -53,12 +53,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add click handlers for stat cards
     const statCards = document.querySelectorAll('.stat-card');
-    statCards.forEach(card => {
-        card.addEventListener('click', function() {
-            const title = this.querySelector('h3').textContent;
-            showNotification(`${title} feature coming soon!`, 'info');
-        });
-    });
+    // Removed generic click handler that showed "coming soon" messages
+    // Individual stat cards now have their own specific click handlers below
 
     // Verify token with backend
     verifyToken(token);
