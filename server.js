@@ -85,7 +85,14 @@ const transporter = nodemailer.createTransport({
 // Add Twilio setup at the top (after other requires)
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+let TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+
+// Format phone number to E.164 format
+if (TWILIO_PHONE_NUMBER) {
+    // Remove all non-digit characters except +
+    TWILIO_PHONE_NUMBER = TWILIO_PHONE_NUMBER.replace(/[^\d+]/g, '');
+    console.log('Formatted TWILIO_PHONE_NUMBER:', TWILIO_PHONE_NUMBER);
+}
 
 // Debug environment variables
 console.log('=== Environment Variables Debug ===');
