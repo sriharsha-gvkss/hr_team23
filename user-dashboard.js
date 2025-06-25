@@ -1390,4 +1390,121 @@ document.addEventListener('DOMContentLoaded', function() {
             showNotification(error.message || 'Failed to download text file', 'error');
         }
     };
+
+    // Function to render questions box for users
+    function renderQuestionsBox(questions) {
+        const infoBox = document.getElementById('dashboardInfoBox');
+        
+        if (!questions || questions.length === 0) {
+            infoBox.innerHTML = `
+                <div class='info-box-title'>
+                    <i class='fas fa-question'></i> Manage Questions
+                </div>
+                <div class='info-box-content'>
+                    <div style='text-align: center; padding: 2rem; color: #6b7280;'>
+                        <i class='fas fa-question-circle' style='font-size: 3rem; margin-bottom: 1rem; display: block;'></i>
+                        <h3 style='margin: 0 0 0.5rem 0;'>No Questions Available</h3>
+                        <p style='margin: 0;'>No questions have been configured yet. Please contact your administrator.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        let html = `
+            <div class='info-box-title'>
+                <i class='fas fa-question'></i> Manage Questions
+            </div>
+            <div class='info-box-content'>
+                <div style='margin-bottom: 1.5rem;'>
+                    <h3 style='margin: 0 0 1rem 0; color: #1f2937;'>📝 Current Questions</h3>
+                    <p style='color: #6b7280; margin-bottom: 1rem;'>These are the questions that will be asked during your calls:</p>
+                </div>
+                
+                <div style='max-height: 400px; overflow-y: auto; margin-bottom: 1.5rem;'>
+        `;
+
+        questions.forEach((question, index) => {
+            html += `
+                <div style="
+                    background: white;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 8px;
+                    padding: 1rem;
+                    margin-bottom: 0.75rem;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                ">
+                    <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                        <div style="
+                            background: #4facfe;
+                            color: white;
+                            width: 24px;
+                            height: 24px;
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 0.75rem;
+                            font-weight: bold;
+                            flex-shrink: 0;
+                            margin-top: 0.125rem;
+                        ">
+                            ${index + 1}
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; color: #1f2937; margin-bottom: 0.25rem;">
+                                ${question}
+                            </div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">
+                                Question ${index + 1} of ${questions.length}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+                
+                <div style="
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    padding: 1rem;
+                    margin-bottom: 1.5rem;
+                ">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <i class="fas fa-info-circle" style="color: #4facfe;"></i>
+                        <strong style="color: #1f2937;">How it works:</strong>
+                    </div>
+                    <ul style="margin: 0; padding-left: 1.5rem; color: #6b7280; font-size: 0.875rem;">
+                        <li>Questions are asked in order during your calls</li>
+                        <li>Each question allows for voice or keypad responses</li>
+                        <li>Responses are recorded and analyzed for confidence scores</li>
+                        <li>You can view detailed reports of all responses</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center;">
+                    <div style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 1rem;
+                        border-radius: 8px;
+                        display: inline-block;
+                    ">
+                        <div style="font-size: 1.5rem; font-weight: bold; margin-bottom: 0.25rem;">
+                            ${questions.length}
+                        </div>
+                        <div style="font-size: 0.875rem; opacity: 0.9;">
+                            Questions Configured
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        infoBox.innerHTML = html;
+    }
 }); 
