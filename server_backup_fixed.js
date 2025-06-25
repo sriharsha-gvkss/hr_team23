@@ -85,7 +85,24 @@ const transporter = nodemailer.createTransport({
 // Add Twilio setup at the top (after other requires)
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+let TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+
+// Format phone number to E.164 format
+if (TWILIO_PHONE_NUMBER) {
+    // Remove all non-digit characters except +
+    TWILIO_PHONE_NUMBER = TWILIO_PHONE_NUMBER.replace(/[^\d+]/g, '');
+    console.log('Formatted TWILIO_PHONE_NUMBER:', TWILIO_PHONE_NUMBER);
+}
+
+// Debug environment variables
+console.log('=== Environment Variables Debug ===');
+console.log('TWILIO_ACCOUNT_SID:', TWILIO_ACCOUNT_SID ? 'SET' : 'NOT SET');
+console.log('TWILIO_AUTH_TOKEN:', TWILIO_AUTH_TOKEN ? 'SET' : 'NOT SET');
+console.log('TWILIO_PHONE_NUMBER:', TWILIO_PHONE_NUMBER ? 'SET' : 'NOT SET');
+console.log('Account SID length:', TWILIO_ACCOUNT_SID ? TWILIO_ACCOUNT_SID.length : 0);
+console.log('Auth Token length:', TWILIO_AUTH_TOKEN ? TWILIO_AUTH_TOKEN.length : 0);
+console.log('Using Account SID:', TWILIO_ACCOUNT_SID);
+console.log('Using Phone Number:', TWILIO_PHONE_NUMBER);
 
 // Initialize Twilio client only if credentials are available
 let twilioClient = null;
@@ -93,16 +110,21 @@ if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER) {
     if (TWILIO_ACCOUNT_SID === 'your_twilio_account_sid_here' || 
         TWILIO_AUTH_TOKEN === 'your_twilio_auth_token_here' || 
         TWILIO_PHONE_NUMBER === 'your_twilio_phone_number_here') {
-        console.warn('⚠️  Twilio credentials are placeholder values. Real calls will not be made.');
-        console.warn('📝 Please update your .env file with real Twilio credentials from https://console.twilio.com/');
+        console.warn('Twilio credentials are placeholder values. Real calls will not be made.');
+        console.warn('Please update your .env file with real Twilio credentials from https://console.twilio.com/');
     } else {
+        try {
         twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
-        console.log('✅ Twilio client initialized successfully with real credentials');
+            console.log('Twilio client initialized successfully with real credentials');
+            console.log('Phone Number:', TWILIO_PHONE_NUMBER);
+        } catch (error) {
+            console.error('Error initializing Twilio client:', error);
+        }
     }
 } else {
-    console.warn('⚠️  Twilio credentials not found. Call functionality will be disabled.');
-    console.warn('📝 Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER environment variables.');
-    console.warn('🔗 Get credentials from: https://console.twilio.com/');
+    console.warn('Twilio credentials not found. Call functionality will be disabled.');
+    console.warn('Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER environment variables.');
+    console.warn('Get credentials from: https://console.twilio.com/');
 }
 
 // Add questions file and functions
@@ -174,6 +196,82 @@ function saveTranscripts(transcripts) {
     } catch (error) {
         console.error('Error saving transcripts:', error);
         return false;
+    }
+}
+
+// Helper function to update user credits
+function updateUserCredits(userId, creditChange, reason = '') {
+    try {
+        const usersData = loadUsers();
+        const userIndex = usersData.users.findIndex(u => u.id === userId);
+        
+        if (userIndex === -1) {
+            console.error(`User not found for credit update: ${userId}`);
+            return false;
+        }
+        
+        const user = usersData.users[userIndex];
+        const oldCredits = user.credits || 0;
+        const newCredits = Math.max(0, oldCredits + creditChange); // Ensure credits don't go below 0
+        
+        user.credits = newCredits;
+        
+        // Add credit transaction log
+        if (!user.creditTransactions) {
+            user.creditTransactions = [];
+        }
+        
+        user.creditTransactions.push({
+            timestamp: new Date().toISOString(),
+            change: creditChange,
+            reason: reason,
+            oldBalance: oldCredits,
+            newBalance: newCredits
+        });
+        
+        // Keep only last 50 transactions to prevent file bloat
+        if (user.creditTransactions.length > 50) {
+            user.creditTransactions = user.creditTransactions.slice(-50);
+        }
+        
+        saveUsers(usersData);
+        
+        console.log(`Credits updated for user ${user.email}: ${oldCredits} → ${newCredits} (${creditChange > 0 ? '+' : ''}${creditChange}) - ${reason}`);
+        return true;
+    } catch (error) {
+        console.error('Error updating user credits:', error);
+        return false;
+    }
+}
+
+// Helper function to check if user has sufficient credits
+function hasSufficientCredits(userId, requiredCredits = 1) {
+    try {
+        const usersData = loadUsers();
+        const user = usersData.users.find(u => u.id === userId);
+        
+        if (!user) {
+            console.error(`User not found for credit check: ${userId}`);
+            return false;
+        }
+        
+        const currentCredits = user.credits || 0;
+        return currentCredits >= requiredCredits;
+    } catch (error) {
+        console.error('Error checking user credits:', error);
+        return false;
+    }
+}
+
+// Helper function to get user credits
+function getUserCredits(userId) {
+    try {
+        const usersData = loadUsers();
+        const user = usersData.users.find(u => u.id === userId);
+        return user ? (user.credits || 0) : 0;
+    } catch (error) {
+        console.error('Error getting user credits:', error);
+        return 0;
     }
 }
 
@@ -314,24 +412,56 @@ app.post('/api/register', async (req, res) => {
 
 // Protected route example
 app.get('/api/profile', authenticateToken, (req, res) => {
-    // Fetch the full user object from users.json
-    const usersData = loadUsers();
-    const user = usersData.users.find(u => u.email === req.user.email);
-    if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    res.json({
-        success: true,
-        user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            credits: user.credits || 0,
-            created_at: user.created_at,
-            last_login: user.last_login
+    try {
+        const usersData = loadUsers();
+        const user = usersData.users.find(u => u.id === req.user.userId);
+        
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'User not found' 
+            });
         }
-    });
+        
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                credits: user.credits || 0,
+                creditTransactions: user.creditTransactions || []
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch user profile' 
+        });
+    }
+});
+
+// Get user credits
+app.get('/api/credits', authenticateToken, (req, res) => {
+    try {
+        const currentCredits = getUserCredits(req.user.userId);
+        const usersData = loadUsers();
+        const user = usersData.users.find(u => u.id === req.user.userId);
+        
+        res.json({
+            success: true,
+            credits: currentCredits,
+            creditTransactions: user?.creditTransactions || []
+        });
+    } catch (error) {
+        console.error('Error fetching user credits:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch user credits' 
+        });
+    }
 });
 
 // Middleware to authenticate JWT token
@@ -549,6 +679,15 @@ app.post('/api/schedule-call', authenticateToken, (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found.' });
         }
         
+        // Check if user has sufficient credits (1 credit per call)
+        if (!hasSufficientCredits(req.user.userId, 1)) {
+            return res.status(402).json({ 
+                success: false, 
+                message: 'Insufficient credits. You need at least 1 credit to schedule a call.',
+                currentCredits: getUserCredits(req.user.userId)
+            });
+        }
+        
         const callsData = loadCalls();
         const newCall = {
             id: callsData.calls.length + 1,
@@ -601,7 +740,7 @@ class CallScheduler {
         if (this.isRunning) return;
         
         this.isRunning = true;
-        console.log('🚀 Call Scheduler started');
+        console.log('Call Scheduler started');
         
         // Schedule existing calls
         this.scheduleExistingCalls();
@@ -620,13 +759,13 @@ class CallScheduler {
             clearInterval(this.checkInterval);
             this.checkInterval = null;
         }
-        console.log('🛑 Call Scheduler stopped');
+        console.log('Call Scheduler stopped');
     }
 
     scheduleExistingCalls() {
         try {
             const callsData = loadCalls();
-            console.log(`📋 Scheduling ${callsData.calls.length} existing calls`);
+            console.log(`Scheduling ${callsData.calls.length} existing calls`);
             
             callsData.calls.forEach(call => {
                 if (!call.completed && !call.failed) {
@@ -634,7 +773,7 @@ class CallScheduler {
                 }
             });
         } catch (error) {
-            console.error('❌ Error scheduling existing calls:', error);
+            console.error('Error scheduling existing calls:', error);
         }
     }
 
@@ -642,14 +781,14 @@ class CallScheduler {
         try {
             // Validate callData and get the time field (support both time and scheduledTime)
             if (!callData) {
-                console.error(`❌ Invalid call data for scheduling:`, callData);
+                console.error(`Invalid call data for scheduling:`, callData);
                 return null;
             }
             
             // Support both 'time' and 'scheduledTime' fields for backward compatibility
             const timeField = callData.scheduledTime || callData.time;
             if (!timeField) {
-                console.error(`❌ No time field found for call ${callData.id}:`, callData);
+                console.error(`No time field found for call ${callData.id}:`, callData);
                 return null;
             }
 
@@ -665,7 +804,7 @@ class CallScheduler {
                 
                 // Validate timeString
                 if (!timeString || typeof timeString !== 'string') {
-                    console.error(`❌ Invalid time string for call ${callData.id}:`, timeString);
+                    console.error(`Invalid time string for call ${callData.id}:`, timeString);
                     return null;
                 }
                 
@@ -678,7 +817,7 @@ class CallScheduler {
                     // Create a date object in IST
                     const [datePart, timePart] = timeString.split('T');
                     if (!datePart || !timePart) {
-                        console.error(`❌ Invalid time format for call ${callData.id}:`, timeString);
+                        console.error(`Invalid time format for call ${callData.id}:`, timeString);
                         return null;
                     }
                     const [year, month, day] = datePart.split('-').map(Number);
@@ -687,14 +826,14 @@ class CallScheduler {
                     // Create date in IST (UTC+5:30)
                     callTime = new Date(Date.UTC(year, month - 1, day, hour, minute) - (5.5 * 60 * 60 * 1000));
                 } else {
-                    console.error(`❌ Invalid time string type for call ${callData.id}:`, typeof timeString, timeString);
+                    console.error(`Invalid time string type for call ${callData.id}:`, typeof timeString, timeString);
                     return null;
                 }
             }
             
             // Validate the parsed time
             if (isNaN(callTime.getTime())) {
-                console.error(`❌ Invalid parsed time for call ${callData.id}:`, callTime);
+                console.error(`Invalid parsed time for call ${callData.id}:`, callTime);
                 return null;
             }
             
@@ -718,32 +857,32 @@ class CallScheduler {
                 
                 // Display in IST
                 const istTime = new Date(callTime.getTime() + (5.5 * 60 * 60 * 1000));
-                console.log(`📅 Scheduled call for ${callData.name} (${callData.phone}) at ${istTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+                console.log(`Scheduled call for ${callData.name} (${callData.phone}) at ${istTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
                 return jobId;
             } else {
                 // Call is due now or in the past
-                console.log(`⏰ Call for ${callData.name} is due now or in the past`);
+                console.log(`Call for ${callData.name} is due now or in the past`);
                 const result = this.makeCall(callData);
                 if (result === null) {
-                    console.log(`⚠️  Call to ${callData.name} failed to initiate`);
+                    console.log(`Call to ${callData.name} failed to initiate`);
                 }
                 return null;
             }
         } catch (error) {
-            console.error(`❌ Error scheduling call for ${callData?.name || 'Unknown'}:`, error);
+            console.error(`Error scheduling call for ${callData?.name || 'Unknown'}:`, error);
             return null;
         }
     }
 
     async makeCall(callData) {
         try {
-            console.log(`🚀 Making scheduled call to ${callData.name} (${callData.phone})`);
+            console.log(`Making scheduled call to ${callData.name} (${callData.phone})`);
             
             // Load questions from questions.json
             const questions = loadQuestions();
             
             if (questions.length === 0) {
-                console.error('❌ No questions defined. Please add questions in the admin dashboard.');
+                console.error('No questions defined. Please add questions in the admin dashboard.');
                 throw new Error('No questions defined');
             }
             
@@ -764,7 +903,13 @@ class CallScheduler {
                 statusCallbackMethod: 'POST'
             });
             
-            console.log(`✅ Call initiated for ${callData.name} with SID: ${twilioCall.sid}`);
+            console.log(`Call initiated for ${callData.name} with SID: ${twilioCall.sid}`);
+            
+            // Deduct 1 credit when call is successfully initiated
+            const creditDeducted = updateUserCredits(callData.userId, -1, `Call initiated to ${callData.name} (${callData.phone})`);
+            if (!creditDeducted) {
+                console.error(`Failed to deduct credits for call ${callData.id}`);
+            }
             
             // Update call status to in progress
             const callsData = loadCalls();
@@ -773,13 +918,14 @@ class CallScheduler {
                 callsData.calls[callIndex].status = 'in-progress';
                 callsData.calls[callIndex].started_at = new Date().toISOString();
                 callsData.calls[callIndex].twilio_call_sid = twilioCall.sid;
+                callsData.calls[callIndex].credits_deducted = true; // Mark that credits were deducted
                 saveCalls(callsData);
             }
             
             return twilioCall;
             
         } catch (error) {
-            console.error(`❌ Error making call to ${callData.name}:`, error);
+            console.error(`Error making call to ${callData.name}:`, error);
             
             // Update call status to failed
             const callsData = loadCalls();
@@ -799,14 +945,14 @@ class CallScheduler {
 
     checkScheduledCalls() {
         if (!this.twilioClient) {
-            console.log('⚠️  Twilio client not available, skipping call check');
+            console.log('Twilio client not available, skipping call check');
             return;
         }
 
         const callsData = loadCalls();
         const now = new Date();
         
-        console.log(`\n🕐 Scheduler check at ${now.toISOString()} (IST: ${now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })})`);
+        console.log(`\nScheduler check at ${now.toISOString()} (IST: ${now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })})`);
         console.log(`   Total calls: ${callsData.calls.length}`);
         console.log(`   Active jobs: ${this.scheduledJobs.size}`);
 
@@ -834,7 +980,7 @@ class CallScheduler {
                     const [hour, minute] = timePart.split(':').map(Number);
                     callTime = new Date(Date.UTC(year, month - 1, day, hour, minute) - (5.5 * 60 * 60 * 1000));
                 } else {
-                    console.error(`❌ Invalid time string type for call ${call.id}:`, typeof timeString, timeString);
+                    console.error(`Invalid time string type for call ${call.id}:`, typeof timeString, timeString);
                     continue;
                 }
             }
@@ -849,17 +995,17 @@ class CallScheduler {
             console.log(`     Time until call: ${minutesUntilCall} minutes`);
             
             if (callTime <= now) {
-                console.log(`   ⏰ Call for ${call.name} is due now or in the past`);
+                console.log(`   Call for ${call.name} is due now or in the past`);
                 
                 // Mark call as in-progress to prevent duplicate calls
                 call.status = 'in-progress';
                 call.started_at = new Date().toISOString();
                 saveCalls(callsData);
                 
-                console.log(`   🚀 Making scheduled call to ${call.name} (${call.phone})`);
+                console.log(`   Making scheduled call to ${call.name} (${call.phone})`);
                 // Handle errors from makeCall to prevent server crash
                 this.makeCall(call).catch(error => {
-                    console.error(`   ❌ Failed to make call to ${call.name}:`, error.message);
+                    console.error(`   Failed to make call to ${call.name}:`, error.message);
                     // Update call status to failed
                     const callsData = loadCalls();
                     const callIndex = callsData.calls.findIndex(c => c.id === call.id);
@@ -871,14 +1017,14 @@ class CallScheduler {
                 });
                 updated = true;
             } else {
-                console.log(`   ⏰ Call not due yet (${minutesUntilCall} minutes remaining)`);
+                console.log(`   Call not due yet (${minutesUntilCall} minutes remaining)`);
             }
         }
         
         if (updated) {
-            console.log(`   💾 Updated calls data`);
+            console.log(`   Updated calls data`);
         } else {
-            console.log(`   📝 No updates needed`);
+            console.log(`   No updates needed`);
         }
     }
 
@@ -908,12 +1054,12 @@ class CallScheduler {
                     saveCalls(callsData);
                 }
                 
-                console.log(`❌ Cancelled call for ${job.callData.name} (${job.callData.phone})`);
+                console.log(`Cancelled call for ${job.callData.name} (${job.callData.phone})`);
                 return true;
             }
             return false;
         } catch (error) {
-            console.error('❌ Error cancelling call:', error);
+            console.error('Error cancelling call:', error);
             return false;
         }
     }
@@ -928,18 +1074,18 @@ callScheduler.start();
 // GET /api/questions
 app.get('/api/questions', authenticateToken, (req, res) => {
     try {
-        console.log('🔍 Questions API called by user:', req.user.email, 'role:', req.user.role);
+        console.log('Questions API called by user:', req.user.email, 'role:', req.user.role);
         
-        console.log('📁 Loading questions from file:', questionsFile);
+        console.log('Loading questions from file:', questionsFile);
         const questions = loadQuestions();
-        console.log('📊 Loaded questions:', questions);
-        
-        res.json({ 
-            success: true, 
+        console.log('Loaded questions:', questions);
+
+        res.json({
+            success: true,
             questions: questions 
         });
     } catch (error) {
-        console.error('❌ Error fetching questions:', error);
+        console.error('Error fetching questions:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Failed to fetch questions: ' + error.message 
@@ -950,7 +1096,7 @@ app.get('/api/questions', authenticateToken, (req, res) => {
 // Update questions
 app.put('/api/questions', authenticateToken, (req, res) => {
     try {
-        console.log('🔍 Questions update API called by user:', req.user.email, 'role:', req.user.role);
+        console.log('Questions update API called by user:', req.user.email, 'role:', req.user.role);
         
         const { questions } = req.body;
 
@@ -963,7 +1109,7 @@ app.put('/api/questions', authenticateToken, (req, res) => {
 
         // Filter out empty questions
         const validQuestions = questions.filter(q => q && q.trim() !== '');
-
+        
         if (validQuestions.length === 0) {
             return res.status(400).json({ 
                 success: false, 
@@ -972,20 +1118,20 @@ app.put('/api/questions', authenticateToken, (req, res) => {
         }
 
         if (saveQuestions(validQuestions)) {
-            console.log(`📝 Questions updated successfully by ${req.user.email}: ${validQuestions.length} questions`);
+            console.log(`Questions updated successfully by ${req.user.email}: ${validQuestions.length} questions`);
             res.json({ 
-                success: true, 
+            success: true,
                 message: 'Questions updated successfully',
                 questions: validQuestions
             });
         } else {
-            res.status(500).json({ 
-                success: false, 
+        res.status(500).json({ 
+            success: false, 
                 message: 'Failed to save questions' 
             });
         }
     } catch (error) {
-        console.error('❌ Error updating questions:', error);
+        console.error('Error updating questions:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Failed to update questions: ' + error.message 
@@ -1039,11 +1185,11 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
         const questions = loadQuestions();
         let responses = loadResponses();
         
-        console.log(`📞 TwiML Request - CallSid: ${callSid}, QuestionIndex: ${questionIndex}, Response: ${digits}`);
+        console.log(`TwiML Request - CallSid: ${callSid}, QuestionIndex: ${questionIndex}, Response: ${digits}`);
         
         // Validate questions exist
         if (!questions || questions.length === 0) {
-            console.error('❌ No questions found in questions.json');
+            console.error('No questions found in questions.json');
             const response = new VoiceResponse();
             response.say('Sorry, there are no questions configured. Please contact the administrator.');
             response.hangup();
@@ -1070,7 +1216,7 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 timestamp: new Date().toISOString() 
             };
             responses.push(callResponse);
-            console.log(`🆔 Created new response with ID: ${responseId} for call: ${callSid}, userId: ${userId}`);
+            console.log(`Created new response with ID: ${responseId} for call: ${callSid}, userId: ${userId}`);
         }
         
         const response = new VoiceResponse();
@@ -1095,7 +1241,7 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 callResponse.answers[previousQuestionIndex] = digits;
                 callResponse.confidences[previousQuestionIndex] = parseFloat(req.body.Confidence) || 0;
                 saveResponses(responses);
-                console.log(`💾 Stored response for question ${previousQuestionIndex + 1} (${questions[previousQuestionIndex]}): ${digits}`);
+                console.log(`Stored response for question ${previousQuestionIndex + 1} (${questions[previousQuestionIndex]}): ${digits}`);
             }
             
             // Ask the current question
@@ -1110,7 +1256,7 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
             });
             
             gather.say(`Question ${questionIndex}: ${questions[currentQuestionIndex]}`);
-            console.log(`❓ Asking question ${questionIndex}: ${questions[currentQuestionIndex]}`);
+            console.log(`Asking question ${questionIndex}: ${questions[currentQuestionIndex]}`);
             
             // If no response within timeout, move to next question
             response.say(`Question ${questionIndex}: ${questions[currentQuestionIndex]}`);
@@ -1122,13 +1268,13 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 callResponse.answers[lastQuestionIndex] = digits;
                 callResponse.confidences[lastQuestionIndex] = parseFloat(req.body.Confidence) || 0;
                 saveResponses(responses);
-                console.log(`💾 Stored final response for question ${lastQuestionIndex + 1} (${questions[lastQuestionIndex]}): ${digits}`);
+                console.log(`Stored final response for question ${lastQuestionIndex + 1} (${questions[lastQuestionIndex]}): ${digits}`);
             }
             
             // All questions completed
             response.say('Thank you for your responses. Goodbye!');
             response.hangup();
-            console.log(`✅ Call completed for CallSid: ${callSid}`);
+            console.log(`Call completed for CallSid: ${callSid}`);
             
             // Update call status to completed
             const callsData = loadCalls();
@@ -1137,8 +1283,8 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 call.completed = true;
                 call.completed_at = new Date().toISOString();
                 call.status = 'completed';
-                saveCalls(callsData);
-                console.log(`✅ Updated call ${call.id} status to completed`);
+        saveCalls(callsData);
+                console.log(`Updated call ${call.id} status to completed`);
             }
         }
         
@@ -1146,7 +1292,7 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
         res.send(response.toString());
         
     } catch (error) {
-        console.error('❌ Error in TwiML webhook:', error);
+        console.error('Error in TwiML webhook:', error);
         
         // Send a safe TwiML response
         const response = new VoiceResponse();
@@ -1180,6 +1326,35 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         const twimlUrl = `${publicUrl}/twiml/ask`;
         const statusCallbackUrl = `${publicUrl}/call-status`;
         console.log(`Making direct call to ${name} (${phone}) at ${twimlUrl}`);
+        
+        // Debug Twilio configuration
+        console.log('=== Twilio Debug Info ===');
+        console.log('TWILIO_ACCOUNT_SID:', TWILIO_ACCOUNT_SID ? 'SET' : 'NOT SET');
+        console.log('TWILIO_AUTH_TOKEN:', TWILIO_AUTH_TOKEN ? 'SET' : 'NOT SET');
+        console.log('TWILIO_PHONE_NUMBER:', TWILIO_PHONE_NUMBER);
+        console.log('twilioClient:', twilioClient ? 'INITIALIZED' : 'NOT INITIALIZED');
+        console.log('Account SID length:', TWILIO_ACCOUNT_SID ? TWILIO_ACCOUNT_SID.length : 0);
+        console.log('Auth Token length:', TWILIO_AUTH_TOKEN ? TWILIO_AUTH_TOKEN.length : 0);
+        console.log('Account SID starts with:', TWILIO_ACCOUNT_SID ? TWILIO_ACCOUNT_SID.substring(0, 5) + '...' : 'NOT SET');
+        console.log('Auth Token starts with:', TWILIO_AUTH_TOKEN ? TWILIO_AUTH_TOKEN.substring(0, 5) + '...' : 'NOT SET');
+        
+        // Test Twilio client authentication
+        try {
+            console.log('Testing Twilio client authentication...');
+            const account = await twilioClient.api.accounts(TWILIO_ACCOUNT_SID).fetch();
+            console.log('Twilio authentication successful! Account friendly name:', account.friendlyName);
+        } catch (authError) {
+            console.error('Twilio authentication failed:', authError.message);
+            console.error('Auth error details:', {
+                status: authError.status,
+                code: authError.code,
+                moreInfo: authError.moreInfo
+            });
+            return res.status(500).json({ 
+                success: false,
+                message: 'Twilio authentication failed: ' + authError.message 
+            });
+        }
         
         // Make the call immediately
         const call = await twilioClient.calls.create({
@@ -1332,7 +1507,7 @@ app.post('/api/scheduler/restart', authenticateToken, (req, res) => {
 app.get('/api/scheduler/status', authenticateToken, (req, res) => {
     try {
         const jobs = callScheduler.getScheduledJobs();
-        const callsData = loadCalls();
+    const callsData = loadCalls();
         const pendingCalls = callsData.calls.filter(call => !call.completed && !call.failed);
         const completedCalls = callsData.calls.filter(call => call.completed);
         const failedCalls = callsData.calls.filter(call => call.failed);
@@ -1358,7 +1533,7 @@ app.post('/call-status', express.urlencoded({ extended: false }), (req, res) => 
     try {
         const { CallSid, CallStatus, CallDuration, RecordingUrl } = req.body;
         
-        console.log(`📞 Call status update for CallSid: ${CallSid}`);
+        console.log(`Call status update for CallSid: ${CallSid}`);
         console.log(`   Status: ${CallStatus}`);
         console.log(`   Duration: ${CallDuration} seconds`);
         console.log(`   Recording URL: ${RecordingUrl}`);
@@ -1378,17 +1553,28 @@ app.post('/call-status', express.urlencoded({ extended: false }), (req, res) => 
                 call.completed = true;
                 call.completed_at = new Date().toISOString();
                 call.status = CallStatus === 'completed' ? 'completed' : 'failed';
+                
+                // Refund credits if call failed and credits were previously deducted
+                if (CallStatus !== 'completed' && call.credits_deducted) {
+                    const creditRefunded = updateUserCredits(call.userId, 1, `Credit refunded - Call failed (${CallStatus}) to ${call.name} (${call.phone})`);
+                    if (creditRefunded) {
+                        call.credits_refunded = true;
+                        console.log(`Credits refunded for failed call ${call.id} (${CallStatus})`);
+                    } else {
+                        console.error(`Failed to refund credits for call ${call.id}`);
+                    }
+                }
             }
             
             saveCalls(callsData);
-            console.log(`✅ Updated call ${call.id} with status: ${CallStatus}`);
+            console.log(`Updated call ${call.id} with status: ${CallStatus}`);
         } else {
-            console.log(`⚠️  Call not found for CallSid: ${CallSid}`);
+            console.log(`Call not found for CallSid: ${CallSid}`);
         }
         
         res.status(200).send('OK');
     } catch (error) {
-        console.error('❌ Error handling call status:', error);
+        console.error('Error handling call status:', error);
         res.status(500).send('Error');
     }
 });
@@ -1398,7 +1584,7 @@ app.post('/recording_status', express.urlencoded({ extended: false }), (req, res
     try {
         const { CallSid, RecordingSid, RecordingUrl, RecordingStatus } = req.body;
         
-        console.log(`📹 Recording status update for CallSid: ${CallSid}`);
+        console.log(`Recording status update for CallSid: ${CallSid}`);
         console.log(`   RecordingSid: ${RecordingSid}`);
         console.log(`   Status: ${RecordingStatus}`);
         console.log(`   URL: ${RecordingUrl}`);
@@ -1414,14 +1600,14 @@ app.post('/recording_status', express.urlencoded({ extended: false }), (req, res
             call.recording_updated_at = new Date().toISOString();
             saveCalls(callsData);
             
-            console.log(`✅ Updated call ${call.id} with recording info`);
+            console.log(`Updated call ${call.id} with recording info`);
         } else {
-            console.log(`⚠️  Call not found for CallSid: ${CallSid}`);
+            console.log(`Call not found for CallSid: ${CallSid}`);
         }
         
         res.status(200).send('OK');
     } catch (error) {
-        console.error('❌ Error handling recording status:', error);
+        console.error('Error handling recording status:', error);
         res.status(500).send('Error');
     }
 });
@@ -1514,7 +1700,7 @@ app.get('/api/download-responses', authenticateToken, (req, res) => {
         const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
         res.send(buffer);
 
-        console.log(`📊 Excel report downloaded: ${filename} with ${responses.length} responses`);
+        console.log(`Excel report downloaded: ${filename} with ${responses.length} responses`);
 
     } catch (error) {
         console.error('Error generating Excel report:', error);
@@ -1549,14 +1735,14 @@ app.get('/api/responses', authenticateToken, (req, res) => {
         const callsData = loadCalls();
         const usersData = loadUsers();
 
-        console.log('🔍 Raw responses from loadResponses():', responses);
-        console.log('📋 First response object:', responses[0]);
-        console.log('🆔 First response ID:', responses[0]?.id);
+        console.log('Raw responses from loadResponses():', responses);
+        console.log('First response object:', responses[0]);
+        console.log('First response ID:', responses[0]?.id);
 
         // Enhance response data with user and call information
         const enhancedResponses = responses.map(response => {
-            console.log('🔍 Processing response:', response);
-            console.log('🆔 Response ID before enhancement:', response.id);
+            console.log('Processing response:', response);
+            console.log('Response ID before enhancement:', response.id);
             
             const call = callsData.calls.find(c => c.twilio_call_sid === response.callSid);
             const user = usersData.users.find(u => u.id === (call ? call.userId : null));
@@ -1567,14 +1753,14 @@ app.get('/api/responses', authenticateToken, (req, res) => {
                 phone: call ? call.phone : 'N/A'
             };
             
-            console.log('🆔 Response ID after enhancement:', enhancedResponse.id);
-            console.log('📋 Enhanced response object:', enhancedResponse);
+            console.log('Response ID after enhancement:', enhancedResponse.id);
+            console.log('Enhanced response object:', enhancedResponse);
             
             return enhancedResponse;
         });
 
-        console.log('📊 Final enhanced responses:', enhancedResponses);
-        console.log('🆔 First enhanced response ID:', enhancedResponses[0]?.id);
+        console.log('Final enhanced responses:', enhancedResponses);
+        console.log('First enhanced response ID:', enhancedResponses[0]?.id);
 
         res.json({ 
             success: true, 
@@ -1612,8 +1798,8 @@ app.get('/api/responses/:responseId', authenticateToken, (req, res) => {
         }
 
         if (!response) {
-            console.log(`❌ Response not found for ID: ${responseId}`);
-            console.log(`📋 Available response IDs:`, responses.map(r => r.id));
+            console.log(`Response not found for ID: ${responseId}`);
+            console.log('Available response IDs:', responses.map(r => r.id));
             return res.status(404).json({ 
                 success: false, 
                 message: 'Response not found' 
@@ -2020,7 +2206,7 @@ app.put('/api/calls/:callId', authenticateToken, (req, res) => {
 
         // Save updated calls
         if (saveCalls(callsData)) {
-            console.log(`📝 Call ${callId} updated successfully`);
+            console.log(`Call ${callId} updated successfully`);
             
             // Cancel any existing scheduled job for this call
             const jobKeys = Array.from(callScheduler.scheduledJobs.keys());
@@ -2032,7 +2218,7 @@ app.put('/api/calls/:callId', authenticateToken, (req, res) => {
                     clearTimeout(existingJob.timeoutId);
                 }
                 callScheduler.scheduledJobs.delete(existingJobKey);
-                console.log(`🗑️ Cancelled existing scheduled job for call ${callId}`);
+                console.log(`Cancelled existing scheduled job for call ${callId}`);
             }
             
             // Schedule the updated call
@@ -2091,7 +2277,7 @@ app.delete('/api/calls/:callId', authenticateToken, (req, res) => {
                 clearTimeout(existingJob.timeoutId);
             }
             callScheduler.scheduledJobs.delete(existingJobKey);
-            console.log(`🗑️ Cancelled scheduled job for call ${callId}`);
+            console.log(`Cancelled scheduled job for call ${callId}`);
         }
 
         // Remove call from array
@@ -2099,7 +2285,7 @@ app.delete('/api/calls/:callId', authenticateToken, (req, res) => {
 
         // Save updated calls
         if (saveCalls(callsData)) {
-            console.log(`🗑️ Call ${callId} deleted successfully`);
+            console.log(`Call ${callId} deleted successfully`);
             res.json({ 
                 success: true, 
                 message: 'Call deleted successfully' 
@@ -2151,7 +2337,7 @@ app.post('/api/trigger-call/:callId', authenticateToken, (req, res) => {
             });
         }
 
-        console.log(`🚀 Call ${callId} triggered immediately by ${req.user.role === 'admin' ? 'admin' : 'user'}`);
+        console.log(`Call ${callId} triggered immediately by ${req.user.role === 'admin' ? 'admin' : 'user'}`);
         
         // Make the call immediately
         makeCall(call)
@@ -2185,7 +2371,7 @@ app.post('/handle-response', (req, res) => {
         const speechResult = req.body.SpeechResult;
         const confidence = req.body.Confidence;
         
-        console.log(`📝 Received response for question ${question} from call ${callId}: ${speechResult}`);
+        console.log(`Call received response for question ${question} from call ${callId}: ${speechResult}`);
         
         // Load existing responses
         const responses = loadResponses();
@@ -2223,76 +2409,6 @@ app.post('/handle-response', (req, res) => {
     }
 });
 
-// Individual response download
-// Individual response download - REMOVED DUPLICATE EXCEL ENDPOINT
-// Keeping only the text file export endpoint below
-
-        }
-
-        // Check authorization - users can only download their own responses, admins can download any
-        const call = callsData.calls.find(c => c.twilio_call_sid === response.callSid);
-        if (req.user.role !== 'admin' && call && call.userId !== req.user.userId) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'You can only download your own response reports' 
-            });
-        }
-
-        const questions = loadQuestions();
-        const user = usersData.users.find(u => u.id === (call ? call.userId : null));
-
-        // Create workbook
-        const workbook = XLSX.utils.book_new();
-        
-        // Prepare response summary data
-        const summaryData = [{
-            'Response ID': responseId,
-            'Call SID': response.callSid,
-            'User Name': user ? user.name : 'N/A',
-            'Contact Name': call ? call.name : 'N/A',
-            'Phone Number': call ? call.phone : 'N/A',
-            'Response Date': new Date(response.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-            'Total Questions': response.answers ? response.answers.length : 0,
-            'Average Confidence': response.confidences ? 
-                (response.confidences.reduce((a, b) => a + b, 0) / response.confidences.length * 100).toFixed(2) + '%' : 'N/A'
-        }];
-
-        const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
-        XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Response Summary');
-
-        // Add detailed Q&A sheet
-        if (response.answers && response.answers.length > 0) {
-            const qaData = response.answers.map((answer, index) => {
-                const question = questions[index] || `Question ${index + 1}`;
-                const confidence = response.confidences ? response.confidences[index] : null;
-                
-                return {
-                    'Question Number': index + 1,
-                    'Question': question,
-                    'Answer': answer,
-                    'Confidence': confidence ? (confidence * 100).toFixed(2) + '%' : 'N/A'
-                };
-            });
-
-            const qaWorksheet = XLSX.utils.json_to_sheet(qaData);
-            XLSX.utils.book_append_sheet(workbook, qaWorksheet, 'Questions & Answers');
-        }
-
-        const filename = `response_report_${responseId}.xlsx`;
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-
-        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-        res.send(buffer);
-
-    } catch (error) {
-        console.error('Error generating response report:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to generate response report: ' + error.message 
-        });
-    }
-});
 
 // Export call to Word document
 app.get('/api/calls/:callId/export-word', authenticateToken, async (req, res) => {
@@ -2499,10 +2615,127 @@ app.get('/api/calls/:callId/export-word', authenticateToken, async (req, res) =>
     }
 });
 
-// Individual response download as Word document
-// Individual response download - REMOVED DUPLICATE EXCEL ENDPOINT
-// Keeping only the text file export endpoint below
+// Export call to text file
+app.get('/api/calls/:callId/export-text', authenticateToken, async (req, res) => {
+    try {
+        const callId = req.params.callId;
+        const callsData = loadCalls();
+        const call = callsData.calls.find(c => c.id == callId);
+        
+        if (!call) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Call not found' 
+            });
+        }
 
+        // Allow users to export their own calls or admins to export any call
+        if (req.user.role !== 'admin' && call.userId !== req.user.userId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'You can only export your own calls' 
+            });
+        }
+
+        const usersData = loadUsers();
+        const user = usersData.users.find(u => u.id === call.userId);
+        const responses = loadResponses();
+        const questions = loadQuestions();
+        
+        // Find response for this call
+        const response = responses.find(r => r.callSid === call.twilio_call_sid);
+
+        // Create text content
+        let textContent = '';
+        
+        // Header
+        textContent += 'SCHEDULED CALL REPORT\n';
+        textContent += '=====================\n\n';
+        
+        // Call Details
+        textContent += 'CALL DETAILS:\n';
+        textContent += '-------------\n';
+        textContent += `Call ID: ${call.id}\n`;
+        textContent += `Contact Name: ${call.name || 'N/A'}\n`;
+        textContent += `Company: ${call.company || 'N/A'}\n`;
+        textContent += `Phone Number: ${call.phone || 'N/A'}\n`;
+        textContent += `Scheduled Time: ${call.scheduledTime ? 
+            new Date(call.scheduledTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}\n`;
+        textContent += `Status: ${call.status || 'N/A'}\n`;
+        textContent += `Created By: ${user ? user.name : 'N/A'}\n`;
+        textContent += `Created At: ${call.created_at ? 
+            new Date(call.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}\n\n`;
+        
+        // Questions and Answers
+        textContent += 'QUESTIONS AND ANSWERS:\n';
+        textContent += '----------------------\n\n';
+        
+        if (response && response.answers && response.answers.length > 0) {
+            response.answers.forEach((answer, index) => {
+                const question = questions[index] || `Question ${index + 1}`;
+                const confidence = response.confidences ? response.confidences[index] : null;
+                
+                textContent += `Q${index + 1}: ${question}\n`;
+                textContent += `A${index + 1}: ${answer || 'No response'}\n`;
+                if (confidence) {
+                    textContent += `Confidence: ${(confidence * 100).toFixed(2)}%\n`;
+                }
+                textContent += '\n';
+            });
+        } else {
+            textContent += 'No responses available for this call.\n\n';
+        }
+        
+        // Footer
+        textContent += '=====================\n';
+        textContent += `Generated on: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\n`;
+
+        // Set headers for text file download
+        const filename = `call_report_${callId}.txt`;
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        
+        // Send the text content
+        res.send(textContent);
+
+    } catch (error) {
+        console.error('Error generating text file:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to generate text file: ' + error.message 
+        });
+    }
+});
+
+// Individual response download as Word document
+app.get('/api/download-response-report/:responseId', authenticateToken, async (req, res) => {
+    try {
+        const responseId = req.params.responseId;
+        const responses = loadResponses();
+        const callsData = loadCalls();
+        const usersData = loadUsers();
+        
+        let response;
+        
+        // First, try to find by original ID
+        response = responses.find(r => r.id === responseId);
+        
+        // If not found and it's a generated ID (format: resp-{callSid}-{index})
+        if (!response && responseId.startsWith('resp-')) {
+            const parts = responseId.split('-');
+            if (parts.length >= 3) {
+                const callSid = parts[1];
+                response = responses.find(r => r.callSid === callSid);
+            }
+        }
+        
+        if (!response) {
+            console.log(`Response not found for download ID: ${responseId}`);
+            console.log('Available response IDs:', responses.map(r => r.id));
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Response not found' 
+            });
         }
 
         // Check authorization - users can only download their own responses, admins can download any
@@ -2678,9 +2911,34 @@ app.get('/api/calls/:callId/export-word', authenticateToken, async (req, res) =>
 });
 
 // Individual response download as text file
-// Individual response download - REMOVED DUPLICATE EXCEL ENDPOINT
-// Keeping only the text file export endpoint below
-
+app.get('/api/download-response-report/:responseId', authenticateToken, async (req, res) => {
+    try {
+        const responseId = req.params.responseId;
+        const responses = loadResponses();
+        const callsData = loadCalls();
+        const usersData = loadUsers();
+        
+        let response;
+        
+        // First, try to find by original ID
+        response = responses.find(r => r.id === responseId);
+        
+        // If not found and it's a generated ID (format: resp-{callSid}-{index})
+        if (!response && responseId.startsWith('resp-')) {
+            const parts = responseId.split('-');
+            if (parts.length >= 3) {
+                const callSid = parts[1];
+                response = responses.find(r => r.callSid === callSid);
+            }
+        }
+        
+        if (!response) {
+            console.log(`Response not found for download ID: ${responseId}`);
+            console.log('Available response IDs:', responses.map(r => r.id));
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Response not found' 
+            });
         }
 
         // Check authorization - users can only download their own responses, admins can download any
@@ -2754,15 +3012,14 @@ app.get('/api/calls/:callId/export-word', authenticateToken, async (req, res) =>
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📁 Static files served from: ${__dirname}`);
-    console.log(`🔐 JWT Secret: ${JWT_SECRET}`);
-    console.log(`👥 Available users:`);
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log('Loading static files from:', __dirname);
+    console.log('Available users:');
     
     const usersData = loadUsers();
     usersData.users.forEach(user => {
         console.log(`   - ${user.email} (${user.role})`);
     });
-    console.log(`\n🔑 Password Reset: Token-based system active`);
-    console.log(`   Reset tokens expire in 15 minutes`);
+    console.log('\nPassword Reset: Token-based system active');
+    console.log('   Reset tokens expire in 15 minutes');
 }); 

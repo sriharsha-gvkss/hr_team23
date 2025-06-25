@@ -277,8 +277,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 showNotification(`Insufficient credits. You have ${data.currentCredits} credits. You need 1 credit to schedule a call.`, 'error');
                                 // Refresh credits display
                                 refreshUserProfile();
-                            } else {
-                                showNotification(data.message || 'Failed to schedule call', 'error');
+                        } else {
+                            showNotification(data.message || 'Failed to schedule call', 'error');
                             }
                         }
                     } catch (err) {
@@ -748,12 +748,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper to get current user ID from token
     function getCurrentUserId() {
+        const token = localStorage.getItem('token');
+        if (!token) return null;
         try {
-            const token = localStorage.getItem('token');
-            console.error('❌ Error editing call:', error);
-            showNotification('Error loading call details. Please try again.', 'error');
+            // Decode JWT to get user ID (assuming JWT structure)
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.id || payload.userId || null;
+        } catch (e) {
+            return null;
         }
-    };
+    }
 
     // Function to show edit call modal
     function showEditCallModal(call) {
@@ -1190,8 +1194,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 showNotification(`Insufficient credits. You have ${data.currentCredits} credits. You need 1 credit to schedule a call.`, 'error');
                                 // Refresh credits display
                                 refreshUserProfile();
-                            } else {
-                                showNotification(data.message || 'Failed to schedule call', 'error');
+                        } else {
+                            showNotification(data.message || 'Failed to schedule call', 'error');
                             }
                         }
                     } catch (err) {

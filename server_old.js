@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
@@ -236,7 +236,7 @@ function updateUserCredits(userId, creditChange, reason = '') {
         
         saveUsers(usersData);
         
-        console.log(`Credits updated for user ${user.email}: ${oldCredits} â†’ ${newCredits} (${creditChange > 0 ? '+' : ''}${creditChange}) - ${reason}`);
+        console.log(`Credits updated for user ${user.email}: ${oldCredits} → ${newCredits} (${creditChange > 0 ? '+' : ''}${creditChange}) - ${reason}`);
         return true;
     } catch (error) {
         console.error('Error updating user credits:', error);
@@ -1272,19 +1272,13 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
             }
             
             // All questions completed
-            // Get the call details to include the person's name in the thank you message
-        const callsData = loadCalls();
-            const call = callsData.calls.find(c => c.twilio_call_sid === callSid);
-            
-            if (call && call.name) {
-                response.say(`Thank you ${call.name} for your responses. We'll get back to you soon. Goodbye!`);
-            } else {
-                response.say('Thank you for your responses. We\'ll get back to you soon. Goodbye!');
-            }
+            response.say('Thank you for your responses. Goodbye!');
             response.hangup();
             console.log(`Call completed for CallSid: ${callSid}`);
             
             // Update call status to completed
+            const callsData = loadCalls();
+            const call = callsData.calls.find(c => c.twilio_call_sid === callSid);
             if (call) {
                 call.completed = true;
                 call.completed_at = new Date().toISOString();
@@ -1293,7 +1287,6 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 console.log(`Updated call ${call.id} status to completed`);
             }
         }
-        
         
         res.type('text/xml');
         res.send(response.toString());
@@ -1325,15 +1318,6 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         return res.status(400).json({ 
             success: false, 
             message: 'Name, company, and phone number are required.' 
-        });
-    }
-    
-    // Check if user has sufficient credits (1 credit per call)
-    if (!hasSufficientCredits(req.user.userId, 1)) {
-        return res.status(402).json({ 
-            success: false, 
-            message: 'Insufficient credits. You need at least 1 credit to make a direct call.',
-            currentCredits: getUserCredits(req.user.userId)
         });
     }
     
@@ -1382,12 +1366,6 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
             statusCallbackMethod: 'POST'
         });
         
-        // Deduct 1 credit when call is successfully initiated
-        const creditDeducted = updateUserCredits(req.user.userId, -1, `Direct call initiated to ${name} (${phone})`);
-        if (!creditDeducted) {
-            console.error(`Failed to deduct credits for direct call to ${name}`);
-        }
-        
         // Save call record for tracking
         const callsData = loadCalls();
         const newCall = {
@@ -1398,11 +1376,10 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
             phone,
             time: new Date().toISOString(),
             created_at: new Date().toISOString(),
-            status: 'in-progress',
-            started_at: new Date().toISOString(),
+            completed: true,
+            completed_at: new Date().toISOString(),
             direct_call: true,
-            twilio_call_sid: call.sid,
-            credits_deducted: true // Mark that credits were deducted
+            twilio_call_sid: call.sid
         };
         callsData.calls.push(newCall);
         saveCalls(callsData);
@@ -1416,18 +1393,6 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         });
     } catch (err) {
         console.error('Error making direct call:', err);
-        
-        // Update call status to failed if call record was created
-        const callsData = loadCalls();
-        const callIndex = callsData.calls.findIndex(c => c.phone === phone && c.direct_call && c.created_at === new Date().toISOString());
-        if (callIndex !== -1) {
-            callsData.calls[callIndex].failed = true;
-            callsData.calls[callIndex].failed_at = new Date().toISOString();
-            callsData.calls[callIndex].status = 'failed';
-            callsData.calls[callIndex].error = err.message;
-            saveCalls(callsData);
-        }
-        
         res.status(500).json({ 
             success: false, 
             message: 'Failed to make call: ' + err.message 
@@ -2742,6 +2707,209 @@ app.get('/api/calls/:callId/export-text', authenticateToken, async (req, res) =>
     }
 });
 
+// Individual response download as Word document
+app.get('/api/download-response-report/:responseId', authenticateToken, async (req, res) => {
+    try {
+        const responseId = req.params.responseId;
+        const responses = loadResponses();
+        const callsData = loadCalls();
+        const usersData = loadUsers();
+        
+        let response;
+        
+        // First, try to find by original ID
+        response = responses.find(r => r.id === responseId);
+        
+        // If not found and it's a generated ID (format: resp-{callSid}-{index})
+        if (!response && responseId.startsWith('resp-')) {
+            const parts = responseId.split('-');
+            if (parts.length >= 3) {
+                const callSid = parts[1];
+                response = responses.find(r => r.callSid === callSid);
+            }
+        }
+        
+        if (!response) {
+            console.log(`Response not found for download ID: ${responseId}`);
+            console.log('Available response IDs:', responses.map(r => r.id));
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Response not found' 
+            });
+        }
+
+        // Check authorization - users can only download their own responses, admins can download any
+        const call = callsData.calls.find(c => c.twilio_call_sid === response.callSid);
+        if (req.user.role !== 'admin' && call && call.userId !== req.user.userId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'You can only download your own response reports' 
+            });
+        }
+
+        const questions = loadQuestions();
+        const user = usersData.users.find(u => u.id === (call ? call.userId : null));
+
+        // Create Word document
+        const doc = new Document({
+            sections: [{
+                properties: {},
+                children: [
+                    // Title
+                    new Paragraph({
+                        text: "Call Response Report",
+                        heading: HeadingLevel.HEADING_1,
+                        alignment: AlignmentType.CENTER,
+                        spacing: {
+                            after: 400
+                        }
+                    }),
+                    
+                    // Response Details Section
+                    new Paragraph({
+                        text: "Response Details",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: {
+                            before: 400,
+                            after: 200
+                        }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Response ID: ", bold: true }),
+                            new TextRun({ text: responseId })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Call SID: ", bold: true }),
+                            new TextRun({ text: response.callSid || 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "User Name: ", bold: true }),
+                            new TextRun({ text: user ? user.name : 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Contact Name: ", bold: true }),
+                            new TextRun({ text: call ? call.name : 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Phone Number: ", bold: true }),
+                            new TextRun({ text: call ? call.phone : 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Response Date: ", bold: true }),
+                            new TextRun({ text: new Date(response.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Questions Answered: ", bold: true }),
+                            new TextRun({ text: response.answers ? response.answers.length.toString() : '0' })
+                        ],
+                        spacing: { after: 200 }
+                    }),
+                    
+                    // Questions & Answers Section
+                    new Paragraph({
+                        text: "Questions & Answers",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: {
+                            before: 400,
+                            after: 200
+                        }
+                    }),
+                    
+                    // Add questions and answers in list format
+                    ...(response.answers && response.answers.length > 0 ? response.answers.map((answer, index) => {
+                        const question = questions[index] || `Question ${index + 1}`;
+                        const confidence = response.confidences ? response.confidences[index] : null;
+                        
+                        return [
+                            // Question
+                            new Paragraph({
+                                children: [
+                                    new TextRun({ 
+                                        text: `Q${index + 1}: ${question}`, 
+                                        bold: true,
+                                        size: 24
+                                    })
+                                ],
+                                spacing: { before: 200, after: 100 }
+                            }),
+                            
+                            // Answer
+                            new Paragraph({
+                                children: [
+                                    new TextRun({ 
+                                        text: `Answer: ${answer || 'No response recorded'}`, 
+                                        size: 24
+                                    })
+                                ],
+                                spacing: { after: 100 }
+                            }),
+                            
+                            // Confidence
+                            new Paragraph({
+                                children: [
+                                    new TextRun({ 
+                                        text: `Confidence: ${confidence ? (confidence * 100).toFixed(1) + '%' : 'N/A'}`, 
+                                        size: 20,
+                                        color: confidence && confidence > 0.7 ? '008000' : confidence && confidence > 0.4 ? 'FFA500' : 'FF0000'
+                                    })
+                                ],
+                                spacing: { after: 200 }
+                            })
+                        ];
+                    }).flat() : [
+                        new Paragraph({ 
+                            text: "No questions and answers available for this response.", 
+                            spacing: { after: 200 } 
+                        })
+                    ])
+                ]
+            }]
+        });
+
+        // Generate buffer and send response
+        const buffer = await Packer.toBuffer(doc);
+        
+        const filename = `response_report_${responseId}.docx`;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        
+        res.send(buffer);
+
+    } catch (error) {
+        console.error('Error generating response report:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to generate response report: ' + error.message 
+        });
+    }
+});
+
 // Individual response download as text file
 app.get('/api/download-response-report/:responseId', authenticateToken, async (req, res) => {
     try {
@@ -2854,95 +3022,4 @@ app.listen(PORT, () => {
     });
     console.log('\nPassword Reset: Token-based system active');
     console.log('   Reset tokens expire in 15 minutes');
-});
-
-// Download all responses for a specific user
-app.get('/api/download-user-responses', authenticateToken, async (req, res) => {
-    try {
-        const responses = loadResponses();
-        const callsData = loadCalls();
-        const usersData = loadUsers();
-        const questions = loadQuestions();
-        
-        // Filter responses for the current user
-        const userResponses = responses.filter(r => {
-            const call = callsData.calls.find(c => c.twilio_call_sid === r.callSid);
-            return call && call.userId === req.user.userId;
-        });
-        
-        if (userResponses.length === 0) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'No responses found for this user' 
-            });
-        }
-        
-        // Create comprehensive text content
-        let textContent = '';
-        
-        // Header
-        textContent += 'ALL USER RESPONSES REPORT\n';
-        textContent += '=========================\n\n';
-        
-        // User information
-        const user = usersData.users.find(u => u.id === req.user.userId);
-        textContent += 'USER INFORMATION:\n';
-        textContent += `Name: ${user?.name || 'N/A'}\n`;
-        textContent += `Email: ${user?.email || 'N/A'}\n`;
-        textContent += `Total Responses: ${userResponses.length}\n`;
-        textContent += `Report Generated: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\n\n`;
-        
-        // Process each response
-        userResponses.forEach((response, index) => {
-            const call = callsData.calls.find(c => c.twilio_call_sid === response.callSid);
-            
-            textContent += `RESPONSE ${index + 1}\n`;
-            textContent += `${'='.repeat(50)}\n\n`;
-            
-            // Response details
-            textContent += 'RESPONSE DETAILS:\n';
-            textContent += `Response ID: ${response.id}\n`;
-            textContent += `Call SID: ${response.callSid}\n`;
-            textContent += `Contact Name: ${call ? call.name : 'N/A'}\n`;
-            textContent += `Contact Phone: ${call ? call.phone : 'N/A'}\n`;
-            textContent += `Company: ${call ? call.company : 'N/A'}\n`;
-            textContent += `Date: ${new Date(response.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\n`;
-            textContent += `Questions Answered: ${response.answers?.length || 0}\n\n`;
-            
-            // Questions and answers
-            if (response.answers && response.answers.length > 0) {
-                textContent += 'QUESTIONS & ANSWERS:\n';
-                textContent += `${'-'.repeat(30)}\n\n`;
-                
-                response.answers.forEach((answer, qIndex) => {
-                    const question = questions[qIndex] || `Question ${qIndex + 1}`;
-                    const confidence = response.confidences && response.confidences[qIndex] 
-                        ? (response.confidences[qIndex] * 100).toFixed(1) 
-                        : 'N/A';
-                    
-                    textContent += `Q${qIndex + 1}: ${question}\n`;
-                    textContent += `Answer: ${answer || 'No response recorded'}\n`;
-                    textContent += `Confidence: ${confidence}${confidence !== 'N/A' ? '%' : ''}\n\n`;
-                });
-            } else {
-                textContent += 'No questions and answers recorded for this response.\n\n';
-            }
-            
-            textContent += '\n';
-        });
-        
-        // Set response headers
-        res.setHeader('Content-Type', 'text/plain');
-        res.setHeader('Content-Disposition', `attachment; filename="all_user_responses_${req.user.userId}_${new Date().toISOString().split('T')[0]}.txt"`);
-        
-        // Send the response
-        res.send(textContent);
-        
-    } catch (error) {
-        console.error('Error downloading user responses:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Internal server error while downloading responses' 
-        });
-    }
 }); 
