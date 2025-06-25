@@ -83,17 +83,19 @@ const transporter = nodemailer.createTransport({
 });
 
 // Add Twilio setup at the top (after other requires)
-const ***REMOVED*** = process.env.***REMOVED***;
-const ***REMOVED*** = process.env.***REMOVED***;
-const ***REMOVED*** = process.env.***REMOVED***;
+const ***REMOVED*** = process.env.***REMOVED*** || 'AC7433a3d816ef13b9978272a054b1171d';
+const ***REMOVED*** = process.env.***REMOVED*** || 'bf84c9a18f973286cf3464d81e286307';
+const ***REMOVED*** = process.env.***REMOVED*** || '+***REMOVED***';
 
 // Debug environment variables
 console.log('=== Environment Variables Debug ===');
-console.log('***REMOVED***:', ***REMOVED*** ? 'SET' : 'NOT SET');
-console.log('***REMOVED***:', ***REMOVED*** ? 'SET' : 'NOT SET');
-console.log('***REMOVED***:', ***REMOVED*** ? 'SET' : 'NOT SET');
+console.log('***REMOVED***:', process.env.***REMOVED*** ? 'SET' : 'NOT SET');
+console.log('***REMOVED***:', process.env.***REMOVED*** ? 'SET' : 'NOT SET');
+console.log('***REMOVED***:', process.env.***REMOVED*** ? 'SET' : 'NOT SET');
 console.log('Account SID length:', ***REMOVED*** ? ***REMOVED***.length : 0);
 console.log('Auth Token length:', ***REMOVED*** ? ***REMOVED***.length : 0);
+console.log('Using Account SID:', ***REMOVED***);
+console.log('Using Phone Number:', ***REMOVED***);
 
 // Initialize Twilio client only if credentials are available
 let twilioClient = null;
@@ -1231,9 +1233,25 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         });
     } catch (err) {
         console.error('Error making direct call:', err);
+        console.error('Error details:', {
+            message: err.message,
+            code: err.code,
+            status: err.status,
+            moreInfo: err.moreInfo,
+            twilioClient: !!twilioClient,
+            accountSid: ***REMOVED*** ? 'SET' : 'NOT SET',
+            authToken: ***REMOVED*** ? 'SET' : 'NOT SET',
+            phoneNumber: ***REMOVED***
+        });
+        
         res.status(500).json({ 
             success: false, 
-            message: 'Failed to make call: ' + err.message 
+            message: 'Failed to make call: ' + err.message,
+            error: {
+                code: err.code,
+                status: err.status,
+                moreInfo: err.moreInfo
+            }
         });
     }
 });
