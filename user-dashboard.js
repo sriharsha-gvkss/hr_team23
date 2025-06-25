@@ -433,13 +433,26 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('📊 All responses:', responses);
         console.log('📞 All calls:', calls);
         
+        // Handle responses array structure properly
         const userResponses = responses.filter(r => {
-            const call = calls.find(c => c.twilio_call_sid === r.callSid);
+            // Handle both array and object response structures
+            const response = Array.isArray(r) ? {
+                id: r[0],
+                callSid: r[1],
+                userId: r[2],
+                answers: r[3],
+                confidences: r[4],
+                timestamp: r[5],
+                name: r[6],
+                phone: r[7]
+            } : r;
+            
+            const call = calls.find(c => c.twilio_call_sid === response.callSid);
             // Ensure proper type comparison - convert both to numbers
             const callUserId = parseInt(call?.userId);
             const currentUserId = parseInt(userId);
             const isUserResponse = call && callUserId === currentUserId;
-            console.log(`🔍 Response ${r.id}: callSid=${r.callSid}, call.userId=${call?.userId} (${typeof call?.userId}), currentUserId=${userId} (${typeof userId}), isUserResponse=${isUserResponse}`);
+            console.log(`🔍 Response ${response.id}: callSid=${response.callSid}, call.userId=${call?.userId} (${typeof call?.userId}), currentUserId=${userId} (${typeof userId}), isUserResponse=${isUserResponse}`);
             return isUserResponse;
         });
         
@@ -470,7 +483,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const pendingCalls = userCalls.filter(c => c.status === 'pending' || c.status === 'scheduled').length;
         const totalResponses = userResponses.length;
         const avgConfidence = userResponses.length > 0 
-            ? (userResponses.reduce((sum, r) => sum + (r.confidences?.reduce((a, b) => a + b, 0) / (r.confidences?.length || 1)), 0) / userResponses.length * 100).toFixed(1)
+            ? (userResponses.reduce((sum, r) => {
+                const response = Array.isArray(r) ? r : r;
+                const confidences = response.confidences || response[4] || [];
+                return sum + (confidences.reduce((a, b) => a + b, 0) / (confidences.length || 1));
+              }, 0) / userResponses.length * 100).toFixed(1)
             : 0;
         
         let html = `
@@ -536,26 +553,38 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             
             userResponses.slice(0, 5).forEach((response, index) => {
-                console.log('🔍 Processing response:', response);
-                console.log('📋 Response ID:', response.id);
-                console.log('📞 Call SID:', response.callSid);
-                console.log('👤 User ID:', response.userId);
-                console.log('🔍 Response object keys:', Object.keys(response));
-                console.log('🔍 Response object values:', Object.values(response));
+                // Handle both array and object response structures
+                const responseData = Array.isArray(response) ? {
+                    id: response[0],
+                    callSid: response[1],
+                    userId: response[2],
+                    answers: response[3],
+                    confidences: response[4],
+                    timestamp: response[5],
+                    name: response[6],
+                    phone: response[7]
+                } : response;
+                
+                console.log('🔍 Processing response:', responseData);
+                console.log('📋 Response ID:', responseData.id);
+                console.log('📞 Call SID:', responseData.callSid);
+                console.log('👤 User ID:', responseData.userId);
+                console.log('🔍 Response object keys:', Object.keys(responseData));
+                console.log('🔍 Response object values:', Object.values(responseData));
                 
                 // Use the original response ID instead of generating a new one
-                const responseId = response.id;
+                const responseId = responseData.id;
                 console.log('🆔 Using Response ID:', responseId);
                 console.log('🆔 Response ID type:', typeof responseId);
                 console.log('🆔 Response ID === undefined:', responseId === undefined);
                 console.log('🆔 Response ID === null:', responseId === null);
                 
                 if (!responseId) {
-                    console.error('❌ Response ID is missing! Response object:', response);
+                    console.error('❌ Response ID is missing! Response object:', responseData);
                 }
                 
-                const call = calls.find(c => c.twilio_call_sid === response.callSid);
-                const responseDate = new Date(response.timestamp).toLocaleDateString('en-IN', {
+                const call = calls.find(c => c.twilio_call_sid === responseData.callSid);
+                const responseDate = new Date(responseData.timestamp).toLocaleDateString('en-IN', {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric',
@@ -563,8 +592,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     minute: '2-digit'
                 });
                 
-                const avgConfidence = response.confidences && response.confidences.length > 0
-                    ? (response.confidences.reduce((a, b) => a + b, 0) / response.confidences.length * 100).toFixed(1)
+                const avgConfidence = responseData.confidences && responseData.confidences.length > 0
+                    ? (responseData.confidences.reduce((a, b) => a + b, 0) / responseData.confidences.length * 100).toFixed(1)
                     : 'N/A';
                 
                 const confidenceColor = avgConfidence !== 'N/A' 
@@ -582,7 +611,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     ">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                             <div style="font-weight: 600; color: #1f2937;">
-                                ${call ? call.name : 'Unknown Contact'}
+                                ${call ? call.name : responseData.name || 'Unknown Contact'}
                             </div>
                             <div style="font-size: 0.875rem; color: #6b7280;">
                                 ${responseDate}
@@ -590,7 +619,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: center; font-size: 0.875rem;">
                             <div>
-                                <strong>Questions:</strong> ${response.answers?.length || 0}
+                                <strong>Questions:</strong> ${responseData.answers?.length || 0}
                             </div>
                             <div>
                                 <strong>Confidence:</strong> 
@@ -603,7 +632,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span style="color: #10b981; font-weight: 600;">Completed</span>
                             </div>
                             <button class="view-response-btn" 
-                                data-response='${JSON.stringify(response)}'
+                                data-response='${JSON.stringify(responseData)}'
                                 style="
                                     background: #667eea;
                                     color: white;
@@ -637,7 +666,7 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             
             userCalls.slice(0, 3).forEach((call, index) => {
-                const callDate = new Date(call.scheduledTime).toLocaleDateString('en-IN', {
+                const callDate = new Date(call.scheduledTime || call.time).toLocaleDateString('en-IN', {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric',
@@ -1992,5 +2021,250 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error deleting question:', error);
             showNotification('Failed to delete question: ' + error.message, 'error');
         }
+    };
+
+    // Function to view response details
+    window.viewResponseDetails = async function(responseId) {
+        try {
+            console.log('🔍 Viewing response details for ID:', responseId);
+            
+            const response = await fetch(`/api/responses/${responseId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to load response details');
+            }
+            
+            const data = await response.json();
+            console.log('📊 Response details data:', data);
+            
+            if (data.success && data.response) {
+                showResponseDetailsModal(data.response);
+            } else {
+                throw new Error('Response details not found');
+            }
+        } catch (error) {
+            console.error('❌ Error loading response details:', error);
+            showNotification('Failed to load response details: ' + error.message, 'error');
+        }
+    };
+
+    // Function to show response details modal
+    function showResponseDetailsModal(responseData) {
+        console.log('📋 Showing response details modal:', responseData);
+        
+        // Get questions for display
+        const questions = loadQuestionsFromStorage() || [];
+        
+        let questionsAnswersHTML = '';
+        if (responseData.answers && responseData.answers.length > 0) {
+            responseData.answers.forEach((answer, index) => {
+                const question = questions[index] || `Question ${index + 1}`;
+                const confidence = responseData.confidences && responseData.confidences[index] 
+                    ? (responseData.confidences[index] * 100).toFixed(1) + '%'
+                    : 'N/A';
+                
+                const confidenceColor = responseData.confidences && responseData.confidences[index]
+                    ? (responseData.confidences[index] >= 0.8 ? '#10b981' : responseData.confidences[index] >= 0.6 ? '#f59e0b' : '#ef4444')
+                    : '#6b7280';
+                
+                questionsAnswersHTML += `
+                    <div style="
+                        background: white;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        padding: 1rem;
+                        margin-bottom: 1rem;
+                    ">
+                        <div style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">
+                            ${question}
+                        </div>
+                        <div style="color: #374151; margin-bottom: 0.5rem;">
+                            <strong>Answer:</strong> ${answer || 'No response'}
+                        </div>
+                        <div style="color: ${confidenceColor}; font-weight: 600;">
+                            <strong>Confidence:</strong> ${confidence}
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            questionsAnswersHTML = '<div style="color: #6b7280; text-align: center; padding: 2rem;">No responses recorded</div>';
+        }
+        
+        const modalHTML = `
+            <div id="responseDetailsModal" class="modal-overlay" style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            ">
+                <div class="modal-content" style="
+                    background: white;
+                    padding: 2rem;
+                    border-radius: 12px;
+                    max-width: 800px;
+                    width: 90%;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h2 style="margin: 0; color: #1f2937; font-size: 1.5rem;">
+                            <i class="fas fa-file-alt" style="color: #667eea; margin-right: 0.5rem;"></i>
+                            Response Details
+                        </h2>
+                        <button id="closeResponseDetailsModal" style="
+                            background: none;
+                            border: none;
+                            font-size: 1.5rem;
+                            cursor: pointer;
+                            color: #6b7280;
+                        ">&times;</button>
+                    </div>
+                    
+                    <div style="margin-bottom: 2rem;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                            <div style="background: #f8fafc; padding: 1rem; border-radius: 8px;">
+                                <div style="font-weight: 600; color: #374151; margin-bottom: 0.25rem;">Response ID</div>
+                                <div style="color: #6b7280; font-family: monospace;">${responseData.id}</div>
+                            </div>
+                            <div style="background: #f8fafc; padding: 1rem; border-radius: 8px;">
+                                <div style="font-weight: 600; color: #374151; margin-bottom: 0.25rem;">Date</div>
+                                <div style="color: #6b7280;">${new Date(responseData.timestamp).toLocaleString('en-IN')}</div>
+                            </div>
+                            <div style="background: #f8fafc; padding: 1rem; border-radius: 8px;">
+                                <div style="font-weight: 600; color: #374151; margin-bottom: 0.25rem;">Questions Answered</div>
+                                <div style="color: #6b7280;">${responseData.answers?.length || 0}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 style="margin: 0 0 1rem 0; color: #1f2937;">Questions & Answers</h3>
+                        ${questionsAnswersHTML}
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 2rem;">
+                        <button id="closeResponseDetailsBtn" style="
+                            background: #6b7280;
+                            color: white;
+                            border: none;
+                            padding: 0.75rem 1.5rem;
+                            border-radius: 8px;
+                            font-size: 1rem;
+                            font-weight: 600;
+                            cursor: pointer;
+                        ">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Add event listeners
+        document.getElementById('closeResponseDetailsModal').addEventListener('click', closeResponseDetailsModal);
+        document.getElementById('closeResponseDetailsBtn').addEventListener('click', closeResponseDetailsModal);
+        
+        // Close modal when clicking outside
+        document.getElementById('responseDetailsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeResponseDetailsModal();
+            }
+        });
+    };
+
+    // Function to close response details modal
+    function closeResponseDetailsModal() {
+        const modal = document.getElementById('responseDetailsModal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    // Function to load all responses (for pagination)
+    window.loadAllResponses = async function() {
+        try {
+            console.log('📥 Loading all responses...');
+            
+            // Fetch all responses and calls
+            const [responsesResponse, callsResponse] = await Promise.all([
+                fetch('/api/responses', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch('/api/calls', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+            ]);
+
+            const responsesData = await responsesResponse.json();
+            const callsData = await callsResponse.json();
+
+            if (responsesResponse.ok && callsResponse.ok) {
+                const responses = responsesData.responses || [];
+                const calls = callsData.calls || [];
+                
+                // Filter for current user
+                const userId = getCurrentUserId();
+                const userResponses = responses.filter(r => {
+                    const call = calls.find(c => c.twilio_call_sid === r.callSid);
+                    return call && parseInt(call.userId) === parseInt(userId);
+                });
+                
+                // Re-render with all responses
+                renderUserReports(userResponses, calls);
+                showNotification('All responses loaded!', 'success');
+            } else {
+                throw new Error('Failed to load responses');
+            }
+        } catch (error) {
+            console.error('❌ Error loading all responses:', error);
+            showNotification('Failed to load all responses: ' + error.message, 'error');
+        }
+    };
+
+    // Helper function to load questions from storage (for response details)
+    function loadQuestionsFromStorage() {
+        try {
+            // Try to get questions from localStorage first
+            const storedQuestions = localStorage.getItem('questions');
+            if (storedQuestions) {
+                return JSON.parse(storedQuestions);
+            }
+            
+            // If not in localStorage, return empty array
+            return [];
+        } catch (error) {
+            console.error('Error loading questions from storage:', error);
+            return [];
+        }
+    }
+
+    // Function to store questions in localStorage when they're loaded
+    function storeQuestionsInStorage(questions) {
+        try {
+            localStorage.setItem('questions', JSON.stringify(questions));
+        } catch (error) {
+            console.error('Error storing questions in localStorage:', error);
+        }
+    }
+
+    // Update the renderQuestionsBox function to store questions
+    const originalRenderQuestionsBox = renderQuestionsBox;
+    renderQuestionsBox = function(questions) {
+        storeQuestionsInStorage(questions);
+        return originalRenderQuestionsBox(questions);
     };
 }); 
