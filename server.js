@@ -1211,6 +1211,26 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         console.log('twilioClient:', twilioClient ? 'INITIALIZED' : 'NOT INITIALIZED');
         console.log('Account SID length:', TWILIO_ACCOUNT_SID ? TWILIO_ACCOUNT_SID.length : 0);
         console.log('Auth Token length:', TWILIO_AUTH_TOKEN ? TWILIO_AUTH_TOKEN.length : 0);
+        console.log('Account SID starts with:', TWILIO_ACCOUNT_SID ? TWILIO_ACCOUNT_SID.substring(0, 5) + '...' : 'NOT SET');
+        console.log('Auth Token starts with:', TWILIO_AUTH_TOKEN ? TWILIO_AUTH_TOKEN.substring(0, 5) + '...' : 'NOT SET');
+        
+        // Test Twilio client authentication
+        try {
+            console.log('Testing Twilio client authentication...');
+            const account = await twilioClient.api.accounts(TWILIO_ACCOUNT_SID).fetch();
+            console.log('Twilio authentication successful! Account friendly name:', account.friendlyName);
+        } catch (authError) {
+            console.error('Twilio authentication failed:', authError.message);
+            console.error('Auth error details:', {
+                status: authError.status,
+                code: authError.code,
+                moreInfo: authError.moreInfo
+            });
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Twilio authentication failed: ' + authError.message 
+            });
+        }
         
         // Make the call immediately
         const call = await twilioClient.calls.create({
