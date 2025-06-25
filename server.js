@@ -83,15 +83,15 @@ const transporter = nodemailer.createTransport({
 });
 
 // Add Twilio setup at the top (after other requires)
-const ***REMOVED*** = process.env.***REMOVED*** || 'AC7433a3d816ef13b9978272a054b1171d';
-const ***REMOVED*** = process.env.***REMOVED*** || 'bf84c9a18f973286cf3464d81e286307';
-const ***REMOVED*** = process.env.***REMOVED*** || '+***REMOVED***';
+const ***REMOVED*** = process.env.***REMOVED***;
+const ***REMOVED*** = process.env.***REMOVED***;
+const ***REMOVED*** = process.env.***REMOVED***;
 
 // Debug environment variables
 console.log('=== Environment Variables Debug ===');
-console.log('***REMOVED***:', process.env.***REMOVED*** ? 'SET' : 'NOT SET');
-console.log('***REMOVED***:', process.env.***REMOVED*** ? 'SET' : 'NOT SET');
-console.log('***REMOVED***:', process.env.***REMOVED*** ? 'SET' : 'NOT SET');
+console.log('***REMOVED***:', ***REMOVED*** ? 'SET' : 'NOT SET');
+console.log('***REMOVED***:', ***REMOVED*** ? 'SET' : 'NOT SET');
+console.log('***REMOVED***:', ***REMOVED*** ? 'SET' : 'NOT SET');
 console.log('Account SID length:', ***REMOVED*** ? ***REMOVED***.length : 0);
 console.log('Auth Token length:', ***REMOVED*** ? ***REMOVED***.length : 0);
 console.log('Using Account SID:', ***REMOVED***);
