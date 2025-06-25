@@ -646,6 +646,15 @@ body { font-family: 'Inter', sans-serif; background: #f4f7fa; min-height: 100vh;
     background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
 }
 
+.download-text-btn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.download-text-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
 /* Schedule Calls Section */
 .schedule-calls {
     background: white;

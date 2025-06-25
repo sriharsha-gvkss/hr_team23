@@ -210,6 +210,18 @@ document.addEventListener('DOMContentLoaded', function() {
             infoBox.innerHTML = `
                 <div class='info-box-title'><i class='fas fa-calendar-plus'></i> Scheduling Call</div>
                 <div class='info-box-content'>
+                    <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #0ea5e9; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <i class="fas fa-coins" style="color: #0ea5e9;"></i>
+                            <strong style="color: #0c4a6e;">Credit Information</strong>
+                        </div>
+                        <div style="color: #0c4a6e; font-size: 0.9rem;">
+                            <div>• Each call costs <strong>1 credit</strong></div>
+                            <div>• Credits are deducted when call is initiated</div>
+                            <div>• Credits are refunded if call fails (busy, no-answer, etc.)</div>
+                            <div>• Current balance: <span id="currentCreditsDisplay" style="font-weight: bold; color: #0ea5e9;">Loading...</span></div>
+                        </div>
+                    </div>
                     <form id="scheduleCallForm" class="schedule-call-form">
                         <div style="margin-bottom: 1rem;">
                             <label for="callName">Name</label><br>
@@ -227,6 +239,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     </form>
                 </div>
             `;
+            
+            // Update current credits display
+            const currentCreditsDisplay = document.getElementById('currentCreditsDisplay');
+            if (currentCreditsDisplay) {
+                const currentCredits = getUserCredits ? getUserCredits() : 0;
+                currentCreditsDisplay.textContent = `${currentCredits} credits`;
+            }
+            
             // Add form submit handler
             const scheduleForm = document.getElementById('scheduleCallForm');
             if (scheduleForm) {
@@ -253,8 +273,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (response.ok && data.success) {
                             showNotification('Call scheduled successfully!', 'success');
                             scheduleForm.reset();
+                            // Refresh credits display after successful scheduling
+                            refreshUserProfile();
                         } else {
-                            showNotification(data.message || 'Failed to schedule call', 'error');
+                            if (response.status === 402) {
+                                // Insufficient credits error
+                                showNotification(`Insufficient credits. You have ${data.currentCredits} credits. You need 1 credit to schedule a call.`, 'error');
+                                // Refresh credits display
+                                refreshUserProfile();
+                            } else {
+                                showNotification(data.message || 'Failed to schedule call', 'error');
+                            }
                         }
                     } catch (err) {
                         showNotification('Network error. Please try again.', 'error');
@@ -303,8 +332,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <button onclick="triggerCall(${call.id})" class="trigger-btn" title="Trigger Now">
                                         <i class="fas fa-play"></i> Trigger Now
                                     </button>
-                                    <button onclick="downloadCallWord(${call.id})" class="download-word-btn" title="Download Word Report">
-                                        <i class="fas fa-file-word"></i> Word
+                                    <button onclick="downloadCallText(${call.id})" class="download-text-btn" title="Download Text Report">
+                                        <i class="fas fa-file-alt"></i> Text
                                     </button>
                                 </div>
                             ` : `
@@ -312,8 +341,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <button onclick="deleteUserCall(${call.id})" class="delete-btn" title="Delete Call">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
-                                    <button onclick="downloadCallWord(${call.id})" class="download-word-btn" title="Download Word Report">
-                                        <i class="fas fa-file-word"></i> Word
+                                    <button onclick="downloadCallText(${call.id})" class="download-text-btn" title="Download Text Report">
+                                        <i class="fas fa-file-alt"></i> Text
                                     </button>
                                 </div>
                             `;
@@ -1607,6 +1636,18 @@ document.addEventListener('DOMContentLoaded', function() {
             infoBox.innerHTML = `
                 <div class='info-box-title'><i class='fas fa-calendar-plus'></i> Scheduling Call</div>
                 <div class='info-box-content'>
+                    <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #0ea5e9; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <i class="fas fa-coins" style="color: #0ea5e9;"></i>
+                            <strong style="color: #0c4a6e;">Credit Information</strong>
+                        </div>
+                        <div style="color: #0c4a6e; font-size: 0.9rem;">
+                            <div>• Each call costs <strong>1 credit</strong></div>
+                            <div>• Credits are deducted when call is initiated</div>
+                            <div>• Credits are refunded if call fails (busy, no-answer, etc.)</div>
+                            <div>• Current balance: <span id="currentCreditsDisplay" style="font-weight: bold; color: #0ea5e9;">Loading...</span></div>
+                        </div>
+                    </div>
                     <form id="scheduleCallForm" class="schedule-call-form">
                         <div style="margin-bottom: 1rem;">
                             <label for="callName">Name</label><br>
@@ -1624,6 +1665,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     </form>
                 </div>
             `;
+            
+            // Update current credits display
+            const currentCreditsDisplay = document.getElementById('currentCreditsDisplay');
+            if (currentCreditsDisplay) {
+                const currentCredits = getUserCredits ? getUserCredits() : 0;
+                currentCreditsDisplay.textContent = `${currentCredits} credits`;
+            }
+            
             // Add form submit handler
             const scheduleForm = document.getElementById('scheduleCallForm');
             if (scheduleForm) {
@@ -1650,8 +1699,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (response.ok && data.success) {
                             showNotification('Call scheduled successfully!', 'success');
                             scheduleForm.reset();
+                            // Refresh credits display after successful scheduling
+                            refreshUserProfile();
                         } else {
-                            showNotification(data.message || 'Failed to schedule call', 'error');
+                            if (response.status === 402) {
+                                // Insufficient credits error
+                                showNotification(`Insufficient credits. You have ${data.currentCredits} credits. You need 1 credit to schedule a call.`, 'error');
+                                // Refresh credits display
+                                refreshUserProfile();
+                            } else {
+                                showNotification(data.message || 'Failed to schedule call', 'error');
+                            }
                         }
                     } catch (err) {
                         showNotification('Network error. Please try again.', 'error');
@@ -1700,8 +1758,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <button onclick="triggerCall(${call.id})" class="trigger-btn" title="Trigger Now">
                                         <i class="fas fa-play"></i> Trigger Now
                                     </button>
-                                    <button onclick="downloadCallWord(${call.id})" class="download-word-btn" title="Download Word Report">
-                                        <i class="fas fa-file-word"></i> Word
+                                    <button onclick="downloadCallText(${call.id})" class="download-text-btn" title="Download Text Report">
+                                        <i class="fas fa-file-alt"></i> Text
                                     </button>
                                 </div>
                             ` : `
@@ -1709,8 +1767,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <button onclick="deleteUserCall(${call.id})" class="delete-btn" title="Delete Call">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
-                                    <button onclick="downloadCallWord(${call.id})" class="download-word-btn" title="Download Word Report">
-                                        <i class="fas fa-file-word"></i> Word
+                                    <button onclick="downloadCallText(${call.id})" class="download-text-btn" title="Download Text Report">
+                                        <i class="fas fa-file-alt"></i> Text
                                     </button>
                                 </div>
                             `;
@@ -1801,12 +1859,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Start the dashboard initialization
     initializeDashboard();
 
-    // Function to download call as Word document
-    window.downloadCallWord = async function(callId) {
+    // Function to download call as text file
+    window.downloadCallText = async function(callId) {
         try {
-            console.log('📄 Downloading Word document for call:', callId);
+            console.log('📄 Downloading text file for call:', callId);
             
-            const response = await fetch(`/api/calls/${callId}/export-word`, {
+            const response = await fetch(`/api/calls/${callId}/export-text`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -1814,12 +1872,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to download Word document');
+                throw new Error(errorData.message || 'Failed to download text file');
             }
             
             // Get the filename from the response headers
             const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = `call_report_${callId}.docx`;
+            let filename = `call_report_${callId}.txt`;
             if (contentDisposition) {
                 const filenameMatch = contentDisposition.match(/filename="(.+)"/);
                 if (filenameMatch) {
@@ -1838,11 +1896,11 @@ document.addEventListener('DOMContentLoaded', function() {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
             
-            showNotification('Word document downloaded successfully!', 'success');
+            showNotification('Text file downloaded successfully!', 'success');
             
         } catch (error) {
-            console.error('Error downloading Word document:', error);
-            showNotification(error.message || 'Failed to download Word document', 'error');
+            console.error('Error downloading text file:', error);
+            showNotification(error.message || 'Failed to download text file', 'error');
         }
     };
 }); 

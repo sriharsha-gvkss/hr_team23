@@ -988,7 +988,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         calls.forEach(call => {
             const row = document.createElement('tr');
-            const statusClass = call.completed ? 'completed' : call.failed ? 'failed' : 'pending';
+            const status = call.completed ? 'completed' : call.failed ? 'failed' : 'pending';
             const statusText = call.completed ? 'Completed' : call.failed ? 'Failed' : 'Pending';
             
             row.innerHTML = `
@@ -996,24 +996,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${call.name}</td>
                 <td>${call.phone}</td>
                 <td>${new Date(call.scheduledTime || call.time).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
-                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td><span class="status-badge ${status}">${statusText}</span></td>
                 <td>${call.userName || 'N/A'}</td>
                 <td>
-                    <button class="action-btn edit-btn" onclick="editCall('${call.id}')" title="Edit Call" ${call.completed || call.failed ? 'disabled' : ''}>
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="action-btn delete-btn" onclick="deleteCall('${call.id}')" title="Delete Call">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    <button class="action-btn trigger-btn" onclick="triggerCall('${call.id}')" title="Trigger Now" ${call.completed || call.failed ? 'disabled' : ''}>
-                        <i class="fas fa-play"></i>
-                    </button>
-                    <button class="action-btn download-btn" onclick="downloadCallReport('${call.id}')" title="Download Report">
-                        <i class="fas fa-download"></i>
-                    </button>
-                    <button class="action-btn word-btn" onclick="downloadCallWord('${call.id}')" title="Download Word Report">
-                        <i class="fas fa-file-word"></i>
-                    </button>
+                    ${status !== 'completed' && status !== 'failed' ? `
+                        <div class="scheduled-call-actions">
+                            <button onclick="editCall(${call.id})" class="edit-btn" title="Edit Call">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button onclick="deleteCall(${call.id})" class="delete-btn" title="Delete Call">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                            <button onclick="triggerCall(${call.id})" class="trigger-btn" title="Trigger Now">
+                                <i class="fas fa-play"></i> Trigger Now
+                            </button>
+                            <button onclick="downloadCallText(${call.id})" class="download-text-btn" title="Download Text Report">
+                                <i class="fas fa-file-alt"></i> Text
+                            </button>
+                        </div>
+                    ` : `
+                        <div class="scheduled-call-actions">
+                            <button onclick="deleteCall(${call.id})" class="delete-btn" title="Delete Call">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                            <button onclick="downloadCallText(${call.id})" class="download-text-btn" title="Download Text Report">
+                                <i class="fas fa-file-alt"></i> Text
+                            </button>
+                        </div>
+                    `}
                 </td>
             `;
             tbody.appendChild(row);
@@ -1150,7 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteCall = deleteCall;
     window.triggerCall = triggerCall;
     window.downloadCallReport = downloadCallReport;
-    window.downloadCallWord = downloadCallWord;
+    window.downloadCallText = downloadCallText;
     window.openResponseModal = openResponseModal;
 
     // Function to open response details modal
@@ -1293,12 +1303,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Function to download call as Word document
-    async function downloadCallWord(callId) {
+    // Function to download call as text file
+    async function downloadCallText(callId) {
         try {
-            console.log('📄 Downloading Word document for call:', callId);
+            console.log('📄 Downloading text file for call:', callId);
             
-            const response = await fetch(`/api/calls/${callId}/export-word`, {
+            const response = await fetch(`/api/calls/${callId}/export-text`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -1306,12 +1316,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to download Word document');
+                throw new Error(errorData.message || 'Failed to download text file');
             }
             
             // Get the filename from the response headers
             const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = `call_report_${callId}.docx`;
+            let filename = `call_report_${callId}.txt`;
             if (contentDisposition) {
                 const filenameMatch = contentDisposition.match(/filename="(.+)"/);
                 if (filenameMatch) {
@@ -1330,11 +1340,11 @@ document.addEventListener('DOMContentLoaded', () => {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
             
-            alert('Word document downloaded successfully!');
+            alert('Text file downloaded successfully!');
             
         } catch (error) {
-            console.error('Error downloading Word document:', error);
-            alert('Failed to download Word document: ' + error.message);
+            console.error('Error downloading text file:', error);
+            alert('Failed to download text file: ' + error.message);
         }
     }
 });

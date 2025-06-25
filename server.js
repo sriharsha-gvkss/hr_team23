@@ -199,6 +199,82 @@ function saveTranscripts(transcripts) {
     }
 }
 
+// Helper function to update user credits
+function updateUserCredits(userId, creditChange, reason = '') {
+    try {
+        const usersData = loadUsers();
+        const userIndex = usersData.users.findIndex(u => u.id === userId);
+        
+        if (userIndex === -1) {
+            console.error(`User not found for credit update: ${userId}`);
+            return false;
+        }
+        
+        const user = usersData.users[userIndex];
+        const oldCredits = user.credits || 0;
+        const newCredits = Math.max(0, oldCredits + creditChange); // Ensure credits don't go below 0
+        
+        user.credits = newCredits;
+        
+        // Add credit transaction log
+        if (!user.creditTransactions) {
+            user.creditTransactions = [];
+        }
+        
+        user.creditTransactions.push({
+            timestamp: new Date().toISOString(),
+            change: creditChange,
+            reason: reason,
+            oldBalance: oldCredits,
+            newBalance: newCredits
+        });
+        
+        // Keep only last 50 transactions to prevent file bloat
+        if (user.creditTransactions.length > 50) {
+            user.creditTransactions = user.creditTransactions.slice(-50);
+        }
+        
+        saveUsers(usersData);
+        
+        console.log(`Credits updated for user ${user.email}: ${oldCredits} → ${newCredits} (${creditChange > 0 ? '+' : ''}${creditChange}) - ${reason}`);
+        return true;
+    } catch (error) {
+        console.error('Error updating user credits:', error);
+        return false;
+    }
+}
+
+// Helper function to check if user has sufficient credits
+function hasSufficientCredits(userId, requiredCredits = 1) {
+    try {
+        const usersData = loadUsers();
+        const user = usersData.users.find(u => u.id === userId);
+        
+        if (!user) {
+            console.error(`User not found for credit check: ${userId}`);
+            return false;
+        }
+        
+        const currentCredits = user.credits || 0;
+        return currentCredits >= requiredCredits;
+    } catch (error) {
+        console.error('Error checking user credits:', error);
+        return false;
+    }
+}
+
+// Helper function to get user credits
+function getUserCredits(userId) {
+    try {
+        const usersData = loadUsers();
+        const user = usersData.users.find(u => u.id === userId);
+        return user ? (user.credits || 0) : 0;
+    } catch (error) {
+        console.error('Error getting user credits:', error);
+        return 0;
+    }
+}
+
 // Routes
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
@@ -336,24 +412,56 @@ app.post('/api/register', async (req, res) => {
 
 // Protected route example
 app.get('/api/profile', authenticateToken, (req, res) => {
-    // Fetch the full user object from users.json
-    const usersData = loadUsers();
-    const user = usersData.users.find(u => u.email === req.user.email);
-    if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    res.json({
-        success: true,
-        user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            credits: user.credits || 0,
-            created_at: user.created_at,
-            last_login: user.last_login
+    try {
+        const usersData = loadUsers();
+        const user = usersData.users.find(u => u.id === req.user.userId);
+        
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'User not found' 
+            });
         }
-    });
+        
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                credits: user.credits || 0,
+                creditTransactions: user.creditTransactions || []
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch user profile' 
+        });
+    }
+});
+
+// Get user credits
+app.get('/api/credits', authenticateToken, (req, res) => {
+    try {
+        const currentCredits = getUserCredits(req.user.userId);
+        const usersData = loadUsers();
+        const user = usersData.users.find(u => u.id === req.user.userId);
+        
+        res.json({
+            success: true,
+            credits: currentCredits,
+            creditTransactions: user?.creditTransactions || []
+        });
+    } catch (error) {
+        console.error('Error fetching user credits:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch user credits' 
+        });
+    }
 });
 
 // Middleware to authenticate JWT token
@@ -569,6 +677,15 @@ app.post('/api/schedule-call', authenticateToken, (req, res) => {
         const user = usersData.users.find(u => u.id === req.user.userId);
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+        
+        // Check if user has sufficient credits (1 credit per call)
+        if (!hasSufficientCredits(req.user.userId, 1)) {
+            return res.status(402).json({ 
+                success: false, 
+                message: 'Insufficient credits. You need at least 1 credit to schedule a call.',
+                currentCredits: getUserCredits(req.user.userId)
+            });
         }
         
         const callsData = loadCalls();
@@ -788,6 +905,12 @@ class CallScheduler {
             
             console.log(`Call initiated for ${callData.name} with SID: ${twilioCall.sid}`);
             
+            // Deduct 1 credit when call is successfully initiated
+            const creditDeducted = updateUserCredits(callData.userId, -1, `Call initiated to ${callData.name} (${callData.phone})`);
+            if (!creditDeducted) {
+                console.error(`Failed to deduct credits for call ${callData.id}`);
+            }
+            
             // Update call status to in progress
             const callsData = loadCalls();
             const callIndex = callsData.calls.findIndex(c => c.id === callData.id);
@@ -795,6 +918,7 @@ class CallScheduler {
                 callsData.calls[callIndex].status = 'in-progress';
                 callsData.calls[callIndex].started_at = new Date().toISOString();
                 callsData.calls[callIndex].twilio_call_sid = twilioCall.sid;
+                callsData.calls[callIndex].credits_deducted = true; // Mark that credits were deducted
                 saveCalls(callsData);
             }
             
@@ -1429,6 +1553,17 @@ app.post('/call-status', express.urlencoded({ extended: false }), (req, res) => 
                 call.completed = true;
                 call.completed_at = new Date().toISOString();
                 call.status = CallStatus === 'completed' ? 'completed' : 'failed';
+                
+                // Refund credits if call failed and credits were previously deducted
+                if (CallStatus !== 'completed' && call.credits_deducted) {
+                    const creditRefunded = updateUserCredits(call.userId, 1, `Credit refunded - Call failed (${CallStatus}) to ${call.name} (${call.phone})`);
+                    if (creditRefunded) {
+                        call.credits_refunded = true;
+                        console.log(`Credits refunded for failed call ${call.id} (${CallStatus})`);
+                    } else {
+                        console.error(`Failed to refund credits for call ${call.id}`);
+                    }
+                }
             }
             
             saveCalls(callsData);
@@ -2476,6 +2611,301 @@ app.get('/api/calls/:callId/export-word', authenticateToken, async (req, res) =>
         res.status(500).json({ 
             success: false, 
             message: 'Failed to generate Word document: ' + error.message 
+        });
+    }
+});
+
+// Export call to text file
+app.get('/api/calls/:callId/export-text', authenticateToken, async (req, res) => {
+    try {
+        const callId = req.params.callId;
+        const callsData = loadCalls();
+        const call = callsData.calls.find(c => c.id == callId);
+        
+        if (!call) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Call not found' 
+            });
+        }
+
+        // Allow users to export their own calls or admins to export any call
+        if (req.user.role !== 'admin' && call.userId !== req.user.userId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'You can only export your own calls' 
+            });
+        }
+
+        const usersData = loadUsers();
+        const user = usersData.users.find(u => u.id === call.userId);
+        const responses = loadResponses();
+        const questions = loadQuestions();
+        
+        // Find response for this call
+        const response = responses.find(r => r.callSid === call.twilio_call_sid);
+
+        // Create text content
+        let textContent = '';
+        
+        // Header
+        textContent += 'SCHEDULED CALL REPORT\n';
+        textContent += '=====================\n\n';
+        
+        // Call Details
+        textContent += 'CALL DETAILS:\n';
+        textContent += '-------------\n';
+        textContent += `Call ID: ${call.id}\n`;
+        textContent += `Contact Name: ${call.name || 'N/A'}\n`;
+        textContent += `Company: ${call.company || 'N/A'}\n`;
+        textContent += `Phone Number: ${call.phone || 'N/A'}\n`;
+        textContent += `Scheduled Time: ${call.scheduledTime ? 
+            new Date(call.scheduledTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}\n`;
+        textContent += `Status: ${call.status || 'N/A'}\n`;
+        textContent += `Created By: ${user ? user.name : 'N/A'}\n`;
+        textContent += `Created At: ${call.created_at ? 
+            new Date(call.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}\n\n`;
+        
+        // Questions and Answers
+        textContent += 'QUESTIONS AND ANSWERS:\n';
+        textContent += '----------------------\n\n';
+        
+        if (response && response.answers && response.answers.length > 0) {
+            response.answers.forEach((answer, index) => {
+                const question = questions[index] || `Question ${index + 1}`;
+                const confidence = response.confidences ? response.confidences[index] : null;
+                
+                textContent += `Q${index + 1}: ${question}\n`;
+                textContent += `A${index + 1}: ${answer || 'No response'}\n`;
+                if (confidence) {
+                    textContent += `Confidence: ${(confidence * 100).toFixed(2)}%\n`;
+                }
+                textContent += '\n';
+            });
+        } else {
+            textContent += 'No responses available for this call.\n\n';
+        }
+        
+        // Footer
+        textContent += '=====================\n';
+        textContent += `Generated on: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\n`;
+
+        // Set headers for text file download
+        const filename = `call_report_${callId}.txt`;
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        
+        // Send the text content
+        res.send(textContent);
+
+    } catch (error) {
+        console.error('Error generating text file:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to generate text file: ' + error.message 
+        });
+    }
+});
+
+// Individual response download as Word document
+app.get('/api/download-response-report/:responseId', authenticateToken, async (req, res) => {
+    try {
+        const responseId = req.params.responseId;
+        const responses = loadResponses();
+        const callsData = loadCalls();
+        const usersData = loadUsers();
+        
+        let response;
+        
+        // First, try to find by original ID
+        response = responses.find(r => r.id === responseId);
+        
+        // If not found and it's a generated ID (format: resp-{callSid}-{index})
+        if (!response && responseId.startsWith('resp-')) {
+            const parts = responseId.split('-');
+            if (parts.length >= 3) {
+                const callSid = parts[1];
+                response = responses.find(r => r.callSid === callSid);
+            }
+        }
+        
+        if (!response) {
+            console.log(`Response not found for download ID: ${responseId}`);
+            console.log('Available response IDs:', responses.map(r => r.id));
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Response not found' 
+            });
+        }
+
+        // Check authorization - users can only download their own responses, admins can download any
+        const call = callsData.calls.find(c => c.twilio_call_sid === response.callSid);
+        if (req.user.role !== 'admin' && call && call.userId !== req.user.userId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'You can only download your own response reports' 
+            });
+        }
+
+        const questions = loadQuestions();
+        const user = usersData.users.find(u => u.id === (call ? call.userId : null));
+
+        // Create Word document
+        const doc = new Document({
+            sections: [{
+                properties: {},
+                children: [
+                    // Title
+                    new Paragraph({
+                        text: "Call Response Report",
+                        heading: HeadingLevel.HEADING_1,
+                        alignment: AlignmentType.CENTER,
+                        spacing: {
+                            after: 400
+                        }
+                    }),
+                    
+                    // Response Details Section
+                    new Paragraph({
+                        text: "Response Details",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: {
+                            before: 400,
+                            after: 200
+                        }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Response ID: ", bold: true }),
+                            new TextRun({ text: responseId })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Call SID: ", bold: true }),
+                            new TextRun({ text: response.callSid || 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "User Name: ", bold: true }),
+                            new TextRun({ text: user ? user.name : 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Contact Name: ", bold: true }),
+                            new TextRun({ text: call ? call.name : 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Phone Number: ", bold: true }),
+                            new TextRun({ text: call ? call.phone : 'N/A' })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Response Date: ", bold: true }),
+                            new TextRun({ text: new Date(response.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) })
+                        ],
+                        spacing: { after: 100 }
+                    }),
+                    
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "Questions Answered: ", bold: true }),
+                            new TextRun({ text: response.answers ? response.answers.length.toString() : '0' })
+                        ],
+                        spacing: { after: 200 }
+                    }),
+                    
+                    // Questions & Answers Section
+                    new Paragraph({
+                        text: "Questions & Answers",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: {
+                            before: 400,
+                            after: 200
+                        }
+                    }),
+                    
+                    // Add questions and answers in list format
+                    ...(response.answers && response.answers.length > 0 ? response.answers.map((answer, index) => {
+                        const question = questions[index] || `Question ${index + 1}`;
+                        const confidence = response.confidences ? response.confidences[index] : null;
+                        
+                        return [
+                            // Question
+                            new Paragraph({
+                                children: [
+                                    new TextRun({ 
+                                        text: `Q${index + 1}: ${question}`, 
+                                        bold: true,
+                                        size: 24
+                                    })
+                                ],
+                                spacing: { before: 200, after: 100 }
+                            }),
+                            
+                            // Answer
+                            new Paragraph({
+                                children: [
+                                    new TextRun({ 
+                                        text: `Answer: ${answer || 'No response recorded'}`, 
+                                        size: 24
+                                    })
+                                ],
+                                spacing: { after: 100 }
+                            }),
+                            
+                            // Confidence
+                            new Paragraph({
+                                children: [
+                                    new TextRun({ 
+                                        text: `Confidence: ${confidence ? (confidence * 100).toFixed(1) + '%' : 'N/A'}`, 
+                                        size: 20,
+                                        color: confidence && confidence > 0.7 ? '008000' : confidence && confidence > 0.4 ? 'FFA500' : 'FF0000'
+                                    })
+                                ],
+                                spacing: { after: 200 }
+                            })
+                        ];
+                    }).flat() : [
+                        new Paragraph({ 
+                            text: "No questions and answers available for this response.", 
+                            spacing: { after: 200 } 
+                        })
+                    ])
+                ]
+            }]
+        });
+
+        // Generate buffer and send response
+        const buffer = await Packer.toBuffer(doc);
+        
+        const filename = `response_report_${responseId}.docx`;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        
+        res.send(buffer);
+
+    } catch (error) {
+        console.error('Error generating response report:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to generate response report: ' + error.message 
         });
     }
 });
