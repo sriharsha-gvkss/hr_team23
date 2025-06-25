@@ -102,7 +102,7 @@ app.get('/api/download-response-report/:responseId', authenticateToken, async (r
 app.listen(PORT, () => {
     console.log(`ðŸš€ Server running on http://localhost:${PORT}`);
     console.log(`ðŸ“ Static files served from: ${__dirname}`);
-    console.log(`ðŸ” JWT Secret: ${***REMOVED***}`);
+    console.log(`ðŸ” JWT Secret: ${JWT_SECRET}`);
     console.log(`ðŸ‘¥ Available users:`);
     
     const usersData = loadUsers();

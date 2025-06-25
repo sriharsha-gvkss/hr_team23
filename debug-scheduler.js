@@ -58,7 +58,7 @@ function debugScheduler() {
     });
     
     // Check Twilio configuration
-    const hasTwilio = process.env.***REMOVED*** && process.env.***REMOVED*** && process.env.***REMOVED***;
+    const hasTwilio = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER;
     
     console.log('📊 SUMMARY:');
     console.log(`   📞 Pending calls: ${pendingCalls.length}`);
@@ -79,9 +79,9 @@ function debugScheduler() {
             console.log('\n🔧 TO FIX THIS:');
             console.log('1. Get Twilio credentials from https://www.twilio.com/');
             console.log('2. Create a .env file with:');
-            console.log('   ***REMOVED***=your_account_sid');
-            console.log('   ***REMOVED***=your_auth_token');
-            console.log('   ***REMOVED***=your_twilio_number');
+            console.log('   TWILIO_ACCOUNT_SID=your_account_sid');
+            console.log('   TWILIO_AUTH_TOKEN=your_auth_token');
+            console.log('   TWILIO_PHONE_NUMBER=your_twilio_number');
             console.log('   PUBLIC_URL=https://hr-automate.onrender.com');
             console.log('3. Restart the server');
             console.log('4. The scheduler will automatically make calls!');

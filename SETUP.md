@@ -25,16 +25,16 @@ Create a `.env` file in the root directory with:
 
 ```env
 # Twilio Configuration
-***REMOVED***=your_twilio_account_sid_here
-***REMOVED***=your_twilio_auth_token_here
-***REMOVED***=your_twilio_phone_number_here
+TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
+TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
+TWILIO_PHONE_NUMBER=your_twilio_phone_number_here
 
 # Server Configuration
-***REMOVED***
+PORT=3000
 BASE_URL=http://localhost:3000
 
 # JWT Secret
-***REMOVED***=your-secret-key-change-in-production
+JWT_SECRET=your-secret-key-change-in-production
 ```
 
 ### 3. Install Dependencies

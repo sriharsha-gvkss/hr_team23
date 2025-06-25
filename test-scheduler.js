@@ -46,7 +46,7 @@ function testScheduler() {
     });
     
     // Check if Twilio would be available
-    const hasTwilio = process.env.***REMOVED*** && process.env.***REMOVED*** && process.env.***REMOVED***;
+    const hasTwilio = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER;
     console.log(`Twilio configured: ${hasTwilio ? '✅ YES' : '❌ NO'}`);
     
     if (!hasTwilio) {

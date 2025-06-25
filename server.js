@@ -13,7 +13,7 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const ***REMOVED*** = process.env.***REMOVED*** || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // Middleware
 app.use(cors());
@@ -83,40 +83,40 @@ const transporter = nodemailer.createTransport({
 });
 
 // Add Twilio setup at the top (after other requires)
-const ***REMOVED*** = process.env.***REMOVED***;
-const ***REMOVED*** = process.env.***REMOVED***;
-const ***REMOVED*** = process.env.***REMOVED***;
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
 // Debug environment variables
 console.log('=== Environment Variables Debug ===');
-console.log('***REMOVED***:', ***REMOVED*** ? 'SET' : 'NOT SET');
-console.log('***REMOVED***:', ***REMOVED*** ? 'SET' : 'NOT SET');
-console.log('***REMOVED***:', ***REMOVED*** ? 'SET' : 'NOT SET');
-console.log('Account SID length:', ***REMOVED*** ? ***REMOVED***.length : 0);
-console.log('Auth Token length:', ***REMOVED*** ? ***REMOVED***.length : 0);
-console.log('Using Account SID:', ***REMOVED***);
-console.log('Using Phone Number:', ***REMOVED***);
+console.log('TWILIO_ACCOUNT_SID:', TWILIO_ACCOUNT_SID ? 'SET' : 'NOT SET');
+console.log('TWILIO_AUTH_TOKEN:', TWILIO_AUTH_TOKEN ? 'SET' : 'NOT SET');
+console.log('TWILIO_PHONE_NUMBER:', TWILIO_PHONE_NUMBER ? 'SET' : 'NOT SET');
+console.log('Account SID length:', TWILIO_ACCOUNT_SID ? TWILIO_ACCOUNT_SID.length : 0);
+console.log('Auth Token length:', TWILIO_AUTH_TOKEN ? TWILIO_AUTH_TOKEN.length : 0);
+console.log('Using Account SID:', TWILIO_ACCOUNT_SID);
+console.log('Using Phone Number:', TWILIO_PHONE_NUMBER);
 
 // Initialize Twilio client only if credentials are available
 let twilioClient = null;
-if (***REMOVED*** && ***REMOVED*** && ***REMOVED***) {
-    if (***REMOVED*** === 'your_twilio_account_sid_here' || 
-        ***REMOVED*** === 'your_twilio_auth_token_here' || 
-        ***REMOVED*** === 'your_twilio_phone_number_here') {
+if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER) {
+    if (TWILIO_ACCOUNT_SID === 'your_twilio_account_sid_here' || 
+        TWILIO_AUTH_TOKEN === 'your_twilio_auth_token_here' || 
+        TWILIO_PHONE_NUMBER === 'your_twilio_phone_number_here') {
         console.warn('Twilio credentials are placeholder values. Real calls will not be made.');
         console.warn('Please update your .env file with real Twilio credentials from https://console.twilio.com/');
     } else {
         try {
-            twilioClient = twilio(***REMOVED***, ***REMOVED***);
+            twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
             console.log('Twilio client initialized successfully with real credentials');
-            console.log('Phone Number:', ***REMOVED***);
+            console.log('Phone Number:', TWILIO_PHONE_NUMBER);
         } catch (error) {
             console.error('Error initializing Twilio client:', error);
         }
     }
 } else {
     console.warn('Twilio credentials not found. Call functionality will be disabled.');
-    console.warn('Please set ***REMOVED***, ***REMOVED***, and ***REMOVED*** environment variables.');
+    console.warn('Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER environment variables.');
     console.warn('Get credentials from: https://console.twilio.com/');
 }
 
@@ -244,7 +244,7 @@ app.post('/api/login', async (req, res) => {
                 email: user.email, 
                 role: user.role 
             }, 
-            ***REMOVED***, 
+            JWT_SECRET, 
             { expiresIn: '24h' }
         );
 
@@ -361,7 +361,7 @@ function authenticateToken(req, res, next) {
         });
     }
 
-    jwt.verify(token, ***REMOVED***, (err, user) => {
+    jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
             return res.status(403).json({ 
                 success: false, 
@@ -935,7 +935,7 @@ class CallScheduler {
 }
 
 // Initialize scheduler
-const callScheduler = new CallScheduler(twilioClient, ***REMOVED***);
+const callScheduler = new CallScheduler(twilioClient, TWILIO_PHONE_NUMBER);
 
 // Start scheduler when server starts
 callScheduler.start();
@@ -1200,7 +1200,7 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         const call = await twilioClient.calls.create({
             url: twimlUrl,
             to: phone,
-            from: ***REMOVED***,
+            from: TWILIO_PHONE_NUMBER,
             statusCallback: statusCallbackUrl,
             statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
             statusCallbackMethod: 'POST'
@@ -1277,7 +1277,7 @@ app.post('/api/trigger-call/:callId', authenticateToken, async (req, res) => {
         await twilioClient.calls.create({
             url: twimlUrl,
             to: call.phone,
-            from: ***REMOVED***,
+            from: TWILIO_PHONE_NUMBER,
             statusCallback: statusCallbackUrl,
             statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
             statusCallbackMethod: 'POST'

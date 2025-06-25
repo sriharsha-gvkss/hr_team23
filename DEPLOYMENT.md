@@ -45,7 +45,7 @@ This guide will help you deploy your attractive login page with backend authenti
 
 4. **Set environment variables:**
    ```bash
-   heroku config:set ***REMOVED***=your-super-secret-jwt-key
+   heroku config:set JWT_SECRET=your-super-secret-jwt-key
    heroku config:set NODE_ENV=production
    ```
 
@@ -66,7 +66,7 @@ This guide will help you deploy your attractive login page with backend authenti
 1. **Go to [Railway.app](https://railway.app)**
 2. **Connect your GitHub repository**
 3. **Set environment variables:**
-   - `***REMOVED***`: Your secret key
+   - `JWT_SECRET`: Your secret key
    - `NODE_ENV`: production
 4. **Deploy automatically**
 
@@ -79,7 +79,7 @@ This guide will help you deploy your attractive login page with backend authenti
    - **Build Command:** `npm install`
    - **Start Command:** `npm start`
    - **Environment Variables:**
-     - `***REMOVED***`: Your secret key
+     - `JWT_SECRET`: Your secret key
      - `NODE_ENV`: production
 
 ### Option 4: Vercel Deployment
@@ -103,7 +103,7 @@ This guide will help you deploy your attractive login page with backend authenti
 3. **Configure the app:**
    - **Build Command:** `npm install`
    - **Run Command:** `npm start`
-   - **Environment Variables:** Set ***REMOVED***
+   - **Environment Variables:** Set JWT_SECRET
 
 ### Option 6: AWS Elastic Beanstalk
 
@@ -116,7 +116,7 @@ This guide will help you deploy your attractive login page with backend authenti
 
 3. **Set environment variables:**
    ```bash
-   eb setenv ***REMOVED***=your-secret-key NODE_ENV=production
+   eb setenv JWT_SECRET=your-secret-key NODE_ENV=production
    ```
 
 4. **Deploy:**
@@ -129,9 +129,9 @@ This guide will help you deploy your attractive login page with backend authenti
 Set these environment variables in your hosting platform:
 
 ```bash
-***REMOVED***=your-super-secret-jwt-key-here
+JWT_SECRET=your-super-secret-jwt-key-here
 NODE_ENV=production
-***REMOVED***  # Optional, most platforms set this automatically
+PORT=3000  # Optional, most platforms set this automatically
 ```
 
 ## 📁 Project Structure for Deployment
@@ -183,7 +183,7 @@ npm install
 git add .
 git commit -m "Deploy to Heroku"
 heroku create your-app-name
-heroku config:set ***REMOVED***=your-secret-key
+heroku config:set JWT_SECRET=your-secret-key
 git push heroku main
 ```
 

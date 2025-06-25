@@ -2,21 +2,21 @@
 
 # Twilio Configuration (REQUIRED for calls to work)
 # Get these from your Twilio Console: https://console.twilio.com/
-***REMOVED***=your_twilio_account_sid_here
-***REMOVED***=your_twilio_auth_token_here
-***REMOVED***=your_twilio_phone_number_here
+TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
+TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
+TWILIO_PHONE_NUMBER=your_twilio_phone_number_here
 
 # Server Configuration
-***REMOVED***
+PORT=3000
 BASE_URL=http://localhost:3000
 
 # Public URL for Twilio webhooks (REQUIRED for calls to work)
 # This must be a publicly accessible URL (not localhost)
 # Your deployed app URL:
-***REMOVED***
+PUBLIC_URL=https://hr-team23.onrender.com
 
 # JWT Secret
-***REMOVED***=your-secret-key-change-in-production
+JWT_SECRET=your-secret-key-change-in-production
 
 # Email Configuration (for password reset)
 SMTP_HOST=smtp.gmail.com
