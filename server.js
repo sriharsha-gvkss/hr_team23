@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
@@ -114,7 +114,7 @@ if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER) {
         console.warn('Please update your .env file with real Twilio credentials from https://console.twilio.com/');
     } else {
         try {
-            twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+        twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
             console.log('Twilio client initialized successfully with real credentials');
             console.log('Phone Number:', TWILIO_PHONE_NUMBER);
         } catch (error) {
@@ -955,7 +955,7 @@ app.get('/api/questions', authenticateToken, (req, res) => {
         console.log('Loading questions from file:', questionsFile);
         const questions = loadQuestions();
         console.log('Loaded questions:', questions);
-        
+
         res.json({
             success: true,
             questions: questions 
@@ -996,13 +996,13 @@ app.put('/api/questions', authenticateToken, (req, res) => {
         if (saveQuestions(validQuestions)) {
             console.log(`Questions updated successfully by ${req.user.email}: ${validQuestions.length} questions`);
             res.json({ 
-                success: true, 
+            success: true,
                 message: 'Questions updated successfully',
                 questions: validQuestions
             });
         } else {
-            res.status(500).json({ 
-                success: false, 
+        res.status(500).json({ 
+            success: false, 
                 message: 'Failed to save questions' 
             });
         }
@@ -1159,7 +1159,7 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 call.completed = true;
                 call.completed_at = new Date().toISOString();
                 call.status = 'completed';
-                saveCalls(callsData);
+        saveCalls(callsData);
                 console.log(`Updated call ${call.id} status to completed`);
             }
         }
@@ -1227,7 +1227,7 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
                 moreInfo: authError.moreInfo
             });
             return res.status(500).json({ 
-                success: false, 
+                success: false,
                 message: 'Twilio authentication failed: ' + authError.message 
             });
         }
@@ -1383,7 +1383,7 @@ app.post('/api/scheduler/restart', authenticateToken, (req, res) => {
 app.get('/api/scheduler/status', authenticateToken, (req, res) => {
     try {
         const jobs = callScheduler.getScheduledJobs();
-        const callsData = loadCalls();
+    const callsData = loadCalls();
         const pendingCalls = callsData.calls.filter(call => !call.completed && !call.failed);
         const completedCalls = callsData.calls.filter(call => call.completed);
         const failedCalls = callsData.calls.filter(call => call.failed);
@@ -2476,209 +2476,6 @@ app.get('/api/calls/:callId/export-word', authenticateToken, async (req, res) =>
         res.status(500).json({ 
             success: false, 
             message: 'Failed to generate Word document: ' + error.message 
-        });
-    }
-});
-
-// Individual response download as Word document
-app.get('/api/download-response-report/:responseId', authenticateToken, async (req, res) => {
-    try {
-        const responseId = req.params.responseId;
-        const responses = loadResponses();
-        const callsData = loadCalls();
-        const usersData = loadUsers();
-        
-        let response;
-        
-        // First, try to find by original ID
-        response = responses.find(r => r.id === responseId);
-        
-        // If not found and it's a generated ID (format: resp-{callSid}-{index})
-        if (!response && responseId.startsWith('resp-')) {
-            const parts = responseId.split('-');
-            if (parts.length >= 3) {
-                const callSid = parts[1];
-                response = responses.find(r => r.callSid === callSid);
-            }
-        }
-        
-        if (!response) {
-            console.log(`Response not found for download ID: ${responseId}`);
-            console.log('Available response IDs:', responses.map(r => r.id));
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Response not found' 
-            });
-        }
-
-        // Check authorization - users can only download their own responses, admins can download any
-        const call = callsData.calls.find(c => c.twilio_call_sid === response.callSid);
-        if (req.user.role !== 'admin' && call && call.userId !== req.user.userId) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'You can only download your own response reports' 
-            });
-        }
-
-        const questions = loadQuestions();
-        const user = usersData.users.find(u => u.id === (call ? call.userId : null));
-
-        // Create Word document
-        const doc = new Document({
-            sections: [{
-                properties: {},
-                children: [
-                    // Title
-                    new Paragraph({
-                        text: "Call Response Report",
-                        heading: HeadingLevel.HEADING_1,
-                        alignment: AlignmentType.CENTER,
-                        spacing: {
-                            after: 400
-                        }
-                    }),
-                    
-                    // Response Details Section
-                    new Paragraph({
-                        text: "Response Details",
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: {
-                            before: 400,
-                            after: 200
-                        }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Response ID: ", bold: true }),
-                            new TextRun({ text: responseId })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Call SID: ", bold: true }),
-                            new TextRun({ text: response.callSid || 'N/A' })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "User Name: ", bold: true }),
-                            new TextRun({ text: user ? user.name : 'N/A' })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Contact Name: ", bold: true }),
-                            new TextRun({ text: call ? call.name : 'N/A' })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Phone Number: ", bold: true }),
-                            new TextRun({ text: call ? call.phone : 'N/A' })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Response Date: ", bold: true }),
-                            new TextRun({ text: new Date(response.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) })
-                        ],
-                        spacing: { after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "Questions Answered: ", bold: true }),
-                            new TextRun({ text: response.answers ? response.answers.length.toString() : '0' })
-                        ],
-                        spacing: { after: 200 }
-                    }),
-                    
-                    // Questions & Answers Section
-                    new Paragraph({
-                        text: "Questions & Answers",
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: {
-                            before: 400,
-                            after: 200
-                        }
-                    }),
-                    
-                    // Add questions and answers in list format
-                    ...(response.answers && response.answers.length > 0 ? response.answers.map((answer, index) => {
-                        const question = questions[index] || `Question ${index + 1}`;
-                        const confidence = response.confidences ? response.confidences[index] : null;
-                        
-                        return [
-                            // Question
-                            new Paragraph({
-                                children: [
-                                    new TextRun({ 
-                                        text: `Q${index + 1}: ${question}`, 
-                                        bold: true,
-                                        size: 24
-                                    })
-                                ],
-                                spacing: { before: 200, after: 100 }
-                            }),
-                            
-                            // Answer
-                            new Paragraph({
-                                children: [
-                                    new TextRun({ 
-                                        text: `Answer: ${answer || 'No response recorded'}`, 
-                                        size: 24
-                                    })
-                                ],
-                                spacing: { after: 100 }
-                            }),
-                            
-                            // Confidence
-                            new Paragraph({
-                                children: [
-                                    new TextRun({ 
-                                        text: `Confidence: ${confidence ? (confidence * 100).toFixed(1) + '%' : 'N/A'}`, 
-                                        size: 20,
-                                        color: confidence && confidence > 0.7 ? '008000' : confidence && confidence > 0.4 ? 'FFA500' : 'FF0000'
-                                    })
-                                ],
-                                spacing: { after: 200 }
-                            })
-                        ];
-                    }).flat() : [
-                        new Paragraph({ 
-                            text: "No questions and answers available for this response.", 
-                            spacing: { after: 200 } 
-                        })
-                    ])
-                ]
-            }]
-        });
-
-        // Generate buffer and send response
-        const buffer = await Packer.toBuffer(doc);
-        
-        const filename = `response_report_${responseId}.docx`;
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        
-        res.send(buffer);
-
-    } catch (error) {
-        console.error('Error generating response report:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to generate response report: ' + error.message 
         });
     }
 });
