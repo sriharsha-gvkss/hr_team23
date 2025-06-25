@@ -1272,21 +1272,28 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
             }
             
             // All questions completed
-            response.say('Thank you for your responses. Goodbye!');
+            // Get the call details to include the person's name in the thank you message
+            const callsData = loadCalls();
+            const call = callsData.calls.find(c => c.twilio_call_sid === callSid);
+            
+            if (call && call.name) {
+                response.say(`Thank you ${call.name} for your responses. We'll get back to you soon. Goodbye!`);
+            } else {
+                response.say('Thank you for your responses. We\'ll get back to you soon. Goodbye!');
+            }
             response.hangup();
             console.log(`Call completed for CallSid: ${callSid}`);
             
             // Update call status to completed
-            const callsData = loadCalls();
-            const call = callsData.calls.find(c => c.twilio_call_sid === callSid);
             if (call) {
                 call.completed = true;
                 call.completed_at = new Date().toISOString();
                 call.status = 'completed';
-        saveCalls(callsData);
+                saveCalls(callsData);
                 console.log(`Updated call ${call.id} status to completed`);
             }
         }
+        
         
         res.type('text/xml');
         res.send(response.toString());
