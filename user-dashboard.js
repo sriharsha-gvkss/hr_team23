@@ -1207,8 +1207,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok && data.success) {
                 showNotification('Call initiated successfully!', 'success');
                 closeDirectCallModal();
+                // Refresh credits display after successful call
+                refreshUserProfile();
             } else {
-                showNotification(data.message || 'Failed to make call', 'error');
+                if (response.status === 402) {
+                    // Insufficient credits error
+                    showNotification(`Insufficient credits. You have ${data.currentCredits} credits. You need 1 credit to make a direct call.`, 'error');
+                    // Refresh credits display
+                    refreshUserProfile();
+                } else {
+                    showNotification(data.message || 'Failed to make call', 'error');
+                }
             }
         } catch (err) {
             showNotification('Network error. Please try again.', 'error');

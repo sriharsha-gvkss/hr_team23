@@ -1321,6 +1321,15 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         });
     }
     
+    // Check if user has sufficient credits (1 credit per call)
+    if (!hasSufficientCredits(req.user.userId, 1)) {
+        return res.status(402).json({ 
+            success: false, 
+            message: 'Insufficient credits. You need at least 1 credit to make a direct call.',
+            currentCredits: getUserCredits(req.user.userId)
+        });
+    }
+    
     try {
         const publicUrl = process.env.PUBLIC_URL || 'https://hr-team23.onrender.com';
         const twimlUrl = `${publicUrl}/twiml/ask`;
@@ -1366,6 +1375,12 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
             statusCallbackMethod: 'POST'
         });
         
+        // Deduct 1 credit when call is successfully initiated
+        const creditDeducted = updateUserCredits(req.user.userId, -1, `Direct call initiated to ${name} (${phone})`);
+        if (!creditDeducted) {
+            console.error(`Failed to deduct credits for direct call to ${name}`);
+        }
+        
         // Save call record for tracking
         const callsData = loadCalls();
         const newCall = {
@@ -1376,10 +1391,11 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
             phone,
             time: new Date().toISOString(),
             created_at: new Date().toISOString(),
-            completed: true,
-            completed_at: new Date().toISOString(),
+            status: 'in-progress',
+            started_at: new Date().toISOString(),
             direct_call: true,
-            twilio_call_sid: call.sid
+            twilio_call_sid: call.sid,
+            credits_deducted: true // Mark that credits were deducted
         };
         callsData.calls.push(newCall);
         saveCalls(callsData);
@@ -1393,6 +1409,18 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         });
     } catch (err) {
         console.error('Error making direct call:', err);
+        
+        // Update call status to failed if call record was created
+        const callsData = loadCalls();
+        const callIndex = callsData.calls.findIndex(c => c.phone === phone && c.direct_call && c.created_at === new Date().toISOString());
+        if (callIndex !== -1) {
+            callsData.calls[callIndex].failed = true;
+            callsData.calls[callIndex].failed_at = new Date().toISOString();
+            callsData.calls[callIndex].status = 'failed';
+            callsData.calls[callIndex].error = err.message;
+            saveCalls(callsData);
+        }
+        
         res.status(500).json({ 
             success: false, 
             message: 'Failed to make call: ' + err.message 
