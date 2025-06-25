@@ -107,7 +107,7 @@ if (***REMOVED*** && ***REMOVED*** && ***REMOVED***) {
         console.warn('Please update your .env file with real Twilio credentials from https://console.twilio.com/');
     } else {
         try {
-        twilioClient = twilio(***REMOVED***, ***REMOVED***);
+            twilioClient = twilio(***REMOVED***, ***REMOVED***);
             console.log('Twilio client initialized successfully with real credentials');
             console.log('Phone Number:', ***REMOVED***);
         } catch (error) {
@@ -948,7 +948,7 @@ app.get('/api/questions', authenticateToken, (req, res) => {
         console.log('Loading questions from file:', questionsFile);
         const questions = loadQuestions();
         console.log('Loaded questions:', questions);
-
+        
         res.json({
             success: true,
             questions: questions 
@@ -989,13 +989,13 @@ app.put('/api/questions', authenticateToken, (req, res) => {
         if (saveQuestions(validQuestions)) {
             console.log(`Questions updated successfully by ${req.user.email}: ${validQuestions.length} questions`);
             res.json({ 
-            success: true,
+                success: true, 
                 message: 'Questions updated successfully',
                 questions: validQuestions
             });
         } else {
-        res.status(500).json({ 
-            success: false, 
+            res.status(500).json({ 
+                success: false, 
                 message: 'Failed to save questions' 
             });
         }
@@ -1152,7 +1152,7 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 call.completed = true;
                 call.completed_at = new Date().toISOString();
                 call.status = 'completed';
-        saveCalls(callsData);
+                saveCalls(callsData);
                 console.log(`Updated call ${call.id} status to completed`);
             }
         }
@@ -1233,25 +1233,9 @@ app.post('/api/direct-call', authenticateToken, async (req, res) => {
         });
     } catch (err) {
         console.error('Error making direct call:', err);
-        console.error('Error details:', {
-            message: err.message,
-            code: err.code,
-            status: err.status,
-            moreInfo: err.moreInfo,
-            twilioClient: !!twilioClient,
-            accountSid: ***REMOVED*** ? 'SET' : 'NOT SET',
-            authToken: ***REMOVED*** ? 'SET' : 'NOT SET',
-            phoneNumber: ***REMOVED***
-        });
-        
         res.status(500).json({ 
             success: false, 
-            message: 'Failed to make call: ' + err.message,
-            error: {
-                code: err.code,
-                status: err.status,
-                moreInfo: err.moreInfo
-            }
+            message: 'Failed to make call: ' + err.message 
         });
     }
 });
@@ -1363,7 +1347,7 @@ app.post('/api/scheduler/restart', authenticateToken, (req, res) => {
 app.get('/api/scheduler/status', authenticateToken, (req, res) => {
     try {
         const jobs = callScheduler.getScheduledJobs();
-    const callsData = loadCalls();
+        const callsData = loadCalls();
         const pendingCalls = callsData.calls.filter(call => !call.completed && !call.failed);
         const completedCalls = callsData.calls.filter(call => call.completed);
         const failedCalls = callsData.calls.filter(call => call.failed);
