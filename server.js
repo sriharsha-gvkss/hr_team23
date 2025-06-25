@@ -93,16 +93,16 @@ if (***REMOVED*** && ***REMOVED*** && ***REMOVED***) {
     if (***REMOVED*** === 'your_twilio_account_sid_here' || 
         ***REMOVED*** === 'your_twilio_auth_token_here' || 
         ***REMOVED*** === 'your_twilio_phone_number_here') {
-        console.warn('âš ï¸  Twilio credentials are placeholder values. Real calls will not be made.');
-        console.warn('ðŸ“ Please update your .env file with real Twilio credentials from https://console.twilio.com/');
+        console.warn('Twilio credentials are placeholder values. Real calls will not be made.');
+        console.warn('Please update your .env file with real Twilio credentials from https://console.twilio.com/');
     } else {
         twilioClient = twilio(***REMOVED***, ***REMOVED***);
-        console.log('âœ… Twilio client initialized successfully with real credentials');
+        console.log('Twilio client initialized successfully with real credentials');
     }
 } else {
-    console.warn('âš ï¸  Twilio credentials not found. Call functionality will be disabled.');
-    console.warn('ðŸ“ Please set ***REMOVED***, ***REMOVED***, and ***REMOVED*** environment variables.');
-    console.warn('ðŸ”— Get credentials from: https://console.twilio.com/');
+    console.warn('Twilio credentials not found. Call functionality will be disabled.');
+    console.warn('Please set ***REMOVED***, ***REMOVED***, and ***REMOVED*** environment variables.');
+    console.warn('Get credentials from: https://console.twilio.com/');
 }
 
 // Add questions file and functions
@@ -601,7 +601,7 @@ class CallScheduler {
         if (this.isRunning) return;
         
         this.isRunning = true;
-        console.log('ðŸš€ Call Scheduler started');
+        console.log('Call Scheduler started');
         
         // Schedule existing calls
         this.scheduleExistingCalls();
@@ -620,13 +620,13 @@ class CallScheduler {
             clearInterval(this.checkInterval);
             this.checkInterval = null;
         }
-        console.log('ðŸ›‘ Call Scheduler stopped');
+        console.log('Call Scheduler stopped');
     }
 
     scheduleExistingCalls() {
         try {
             const callsData = loadCalls();
-            console.log(`ðŸ“‹ Scheduling ${callsData.calls.length} existing calls`);
+            console.log(`Scheduling ${callsData.calls.length} existing calls`);
             
             callsData.calls.forEach(call => {
                 if (!call.completed && !call.failed) {
@@ -634,7 +634,7 @@ class CallScheduler {
                 }
             });
         } catch (error) {
-            console.error('âŒ Error scheduling existing calls:', error);
+            console.error('Error scheduling existing calls:', error);
         }
     }
 
@@ -642,14 +642,14 @@ class CallScheduler {
         try {
             // Validate callData and get the time field (support both time and scheduledTime)
             if (!callData) {
-                console.error(`âŒ Invalid call data for scheduling:`, callData);
+                console.error(`Invalid call data for scheduling:`, callData);
                 return null;
             }
             
             // Support both 'time' and 'scheduledTime' fields for backward compatibility
             const timeField = callData.scheduledTime || callData.time;
             if (!timeField) {
-                console.error(`âŒ No time field found for call ${callData.id}:`, callData);
+                console.error(`No time field found for call ${callData.id}:`, callData);
                 return null;
             }
 
@@ -665,7 +665,7 @@ class CallScheduler {
                 
                 // Validate timeString
                 if (!timeString || typeof timeString !== 'string') {
-                    console.error(`âŒ Invalid time string for call ${callData.id}:`, timeString);
+                    console.error(`Invalid time string for call ${callData.id}:`, timeString);
                     return null;
                 }
                 
@@ -678,7 +678,7 @@ class CallScheduler {
                     // Create a date object in IST
                     const [datePart, timePart] = timeString.split('T');
                     if (!datePart || !timePart) {
-                        console.error(`âŒ Invalid time format for call ${callData.id}:`, timeString);
+                        console.error(`Invalid time format for call ${callData.id}:`, timeString);
                         return null;
                     }
                     const [year, month, day] = datePart.split('-').map(Number);
@@ -687,14 +687,14 @@ class CallScheduler {
                     // Create date in IST (UTC+5:30)
                     callTime = new Date(Date.UTC(year, month - 1, day, hour, minute) - (5.5 * 60 * 60 * 1000));
                 } else {
-                    console.error(`âŒ Invalid time string type for call ${callData.id}:`, typeof timeString, timeString);
+                    console.error(`Invalid time string type for call ${callData.id}:`, typeof timeString, timeString);
                     return null;
                 }
             }
             
             // Validate the parsed time
             if (isNaN(callTime.getTime())) {
-                console.error(`âŒ Invalid parsed time for call ${callData.id}:`, callTime);
+                console.error(`Invalid parsed time for call ${callData.id}:`, callTime);
                 return null;
             }
             
@@ -718,32 +718,32 @@ class CallScheduler {
                 
                 // Display in IST
                 const istTime = new Date(callTime.getTime() + (5.5 * 60 * 60 * 1000));
-                console.log(`ðŸ“… Scheduled call for ${callData.name} (${callData.phone}) at ${istTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+                console.log(`Scheduled call for ${callData.name} (${callData.phone}) at ${istTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
                 return jobId;
             } else {
                 // Call is due now or in the past
-                console.log(`â° Call for ${callData.name} is due now or in the past`);
+                console.log(`Call for ${callData.name} is due now or in the past`);
                 const result = this.makeCall(callData);
                 if (result === null) {
-                    console.log(`âš ï¸  Call to ${callData.name} failed to initiate`);
+                    console.log(`Call to ${callData.name} failed to initiate`);
                 }
                 return null;
             }
         } catch (error) {
-            console.error(`âŒ Error scheduling call for ${callData?.name || 'Unknown'}:`, error);
+            console.error(`Error scheduling call for ${callData?.name || 'Unknown'}:`, error);
             return null;
         }
     }
 
     async makeCall(callData) {
         try {
-            console.log(`ðŸš€ Making scheduled call to ${callData.name} (${callData.phone})`);
+            console.log(`Making scheduled call to ${callData.name} (${callData.phone})`);
             
             // Load questions from questions.json
             const questions = loadQuestions();
             
             if (questions.length === 0) {
-                console.error('âŒ No questions defined. Please add questions in the admin dashboard.');
+                console.error('No questions defined. Please add questions in the admin dashboard.');
                 throw new Error('No questions defined');
             }
             
@@ -764,7 +764,7 @@ class CallScheduler {
                 statusCallbackMethod: 'POST'
             });
             
-            console.log(`âœ… Call initiated for ${callData.name} with SID: ${twilioCall.sid}`);
+            console.log(`Call initiated for ${callData.name} with SID: ${twilioCall.sid}`);
             
             // Update call status to in progress
             const callsData = loadCalls();
@@ -779,7 +779,7 @@ class CallScheduler {
             return twilioCall;
             
         } catch (error) {
-            console.error(`âŒ Error making call to ${callData.name}:`, error);
+            console.error(`Error making call to ${callData.name}:`, error);
             
             // Update call status to failed
             const callsData = loadCalls();
@@ -799,14 +799,14 @@ class CallScheduler {
 
     checkScheduledCalls() {
         if (!this.twilioClient) {
-            console.log('âš ï¸  Twilio client not available, skipping call check');
+            console.log('Twilio client not available, skipping call check');
             return;
         }
 
         const callsData = loadCalls();
         const now = new Date();
         
-        console.log(`\nðŸ• Scheduler check at ${now.toISOString()} (IST: ${now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })})`);
+        console.log(`\nScheduler check at ${now.toISOString()} (IST: ${now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })})`);
         console.log(`   Total calls: ${callsData.calls.length}`);
         console.log(`   Active jobs: ${this.scheduledJobs.size}`);
 
@@ -834,7 +834,7 @@ class CallScheduler {
                     const [hour, minute] = timePart.split(':').map(Number);
                     callTime = new Date(Date.UTC(year, month - 1, day, hour, minute) - (5.5 * 60 * 60 * 1000));
                 } else {
-                    console.error(`âŒ Invalid time string type for call ${call.id}:`, typeof timeString, timeString);
+                    console.error(`Invalid time string type for call ${call.id}:`, typeof timeString, timeString);
                     continue;
                 }
             }
@@ -849,17 +849,17 @@ class CallScheduler {
             console.log(`     Time until call: ${minutesUntilCall} minutes`);
             
             if (callTime <= now) {
-                console.log(`   â° Call for ${call.name} is due now or in the past`);
+                console.log(`   Call for ${call.name} is due now or in the past`);
                 
                 // Mark call as in-progress to prevent duplicate calls
                 call.status = 'in-progress';
                 call.started_at = new Date().toISOString();
                 saveCalls(callsData);
                 
-                console.log(`   ðŸš€ Making scheduled call to ${call.name} (${call.phone})`);
+                console.log(`   Making scheduled call to ${call.name} (${call.phone})`);
                 // Handle errors from makeCall to prevent server crash
                 this.makeCall(call).catch(error => {
-                    console.error(`   âŒ Failed to make call to ${call.name}:`, error.message);
+                    console.error(`   Failed to make call to ${call.name}:`, error.message);
                     // Update call status to failed
                     const callsData = loadCalls();
                     const callIndex = callsData.calls.findIndex(c => c.id === call.id);
@@ -871,14 +871,14 @@ class CallScheduler {
                 });
                 updated = true;
             } else {
-                console.log(`   â° Call not due yet (${minutesUntilCall} minutes remaining)`);
+                console.log(`   Call not due yet (${minutesUntilCall} minutes remaining)`);
             }
         }
         
         if (updated) {
-            console.log(`   ðŸ’¾ Updated calls data`);
+            console.log(`   Updated calls data`);
         } else {
-            console.log(`   ðŸ“ No updates needed`);
+            console.log(`   No updates needed`);
         }
     }
 
@@ -908,12 +908,12 @@ class CallScheduler {
                     saveCalls(callsData);
                 }
                 
-                console.log(`âŒ Cancelled call for ${job.callData.name} (${job.callData.phone})`);
+                console.log(`Cancelled call for ${job.callData.name} (${job.callData.phone})`);
                 return true;
             }
             return false;
         } catch (error) {
-            console.error('âŒ Error cancelling call:', error);
+            console.error('Error cancelling call:', error);
             return false;
         }
     }
@@ -928,18 +928,18 @@ callScheduler.start();
 // GET /api/questions
 app.get('/api/questions', authenticateToken, (req, res) => {
     try {
-        console.log('ðŸ” Questions API called by user:', req.user.email, 'role:', req.user.role);
+        console.log('Questions API called by user:', req.user.email, 'role:', req.user.role);
         
-        console.log('ðŸ“ Loading questions from file:', questionsFile);
+        console.log('Loading questions from file:', questionsFile);
         const questions = loadQuestions();
-        console.log('ðŸ“Š Loaded questions:', questions);
+        console.log('Loaded questions:', questions);
         
         res.json({ 
             success: true, 
             questions: questions 
         });
     } catch (error) {
-        console.error('âŒ Error fetching questions:', error);
+        console.error('Error fetching questions:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Failed to fetch questions: ' + error.message 
@@ -950,7 +950,7 @@ app.get('/api/questions', authenticateToken, (req, res) => {
 // Update questions
 app.put('/api/questions', authenticateToken, (req, res) => {
     try {
-        console.log('ðŸ” Questions update API called by user:', req.user.email, 'role:', req.user.role);
+        console.log('Questions update API called by user:', req.user.email, 'role:', req.user.role);
         
         const { questions } = req.body;
 
@@ -972,7 +972,7 @@ app.put('/api/questions', authenticateToken, (req, res) => {
         }
 
         if (saveQuestions(validQuestions)) {
-            console.log(`ðŸ“ Questions updated successfully by ${req.user.email}: ${validQuestions.length} questions`);
+            console.log(`Questions updated successfully by ${req.user.email}: ${validQuestions.length} questions`);
             res.json({ 
                 success: true, 
                 message: 'Questions updated successfully',
@@ -985,7 +985,7 @@ app.put('/api/questions', authenticateToken, (req, res) => {
             });
         }
     } catch (error) {
-        console.error('âŒ Error updating questions:', error);
+        console.error('Error updating questions:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Failed to update questions: ' + error.message 
@@ -1039,11 +1039,11 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
         const questions = loadQuestions();
         let responses = loadResponses();
         
-        console.log(`ðŸ“ž TwiML Request - CallSid: ${callSid}, QuestionIndex: ${questionIndex}, Response: ${digits}`);
+        console.log(`TwiML Request - CallSid: ${callSid}, QuestionIndex: ${questionIndex}, Response: ${digits}`);
         
         // Validate questions exist
         if (!questions || questions.length === 0) {
-            console.error('âŒ No questions found in questions.json');
+            console.error('No questions found in questions.json');
             const response = new VoiceResponse();
             response.say('Sorry, there are no questions configured. Please contact the administrator.');
             response.hangup();
@@ -1070,7 +1070,7 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 timestamp: new Date().toISOString() 
             };
             responses.push(callResponse);
-            console.log(`ðŸ†” Created new response with ID: ${responseId} for call: ${callSid}, userId: ${userId}`);
+            console.log(`Created new response with ID: ${responseId} for call: ${callSid}, userId: ${userId}`);
         }
         
         const response = new VoiceResponse();
@@ -1095,7 +1095,7 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 callResponse.answers[previousQuestionIndex] = digits;
                 callResponse.confidences[previousQuestionIndex] = parseFloat(req.body.Confidence) || 0;
                 saveResponses(responses);
-                console.log(`ðŸ’¾ Stored response for question ${previousQuestionIndex + 1} (${questions[previousQuestionIndex]}): ${digits}`);
+                console.log(`Stored response for question ${previousQuestionIndex + 1} (${questions[previousQuestionIndex]}): ${digits}`);
             }
             
             // Ask the current question
@@ -1110,7 +1110,7 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
             });
             
             gather.say(`Question ${questionIndex}: ${questions[currentQuestionIndex]}`);
-            console.log(`â“ Asking question ${questionIndex}: ${questions[currentQuestionIndex]}`);
+            console.log(`Asking question ${questionIndex}: ${questions[currentQuestionIndex]}`);
             
             // If no response within timeout, move to next question
             response.say(`Question ${questionIndex}: ${questions[currentQuestionIndex]}`);
@@ -1122,13 +1122,13 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 callResponse.answers[lastQuestionIndex] = digits;
                 callResponse.confidences[lastQuestionIndex] = parseFloat(req.body.Confidence) || 0;
                 saveResponses(responses);
-                console.log(`ðŸ’¾ Stored final response for question ${lastQuestionIndex + 1} (${questions[lastQuestionIndex]}): ${digits}`);
+                console.log(`Stored final response for question ${lastQuestionIndex + 1} (${questions[lastQuestionIndex]}): ${digits}`);
             }
             
             // All questions completed
             response.say('Thank you for your responses. Goodbye!');
             response.hangup();
-            console.log(`âœ… Call completed for CallSid: ${callSid}`);
+            console.log(`Call completed for CallSid: ${callSid}`);
             
             // Update call status to completed
             const callsData = loadCalls();
@@ -1138,7 +1138,7 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
                 call.completed_at = new Date().toISOString();
                 call.status = 'completed';
                 saveCalls(callsData);
-                console.log(`âœ… Updated call ${call.id} status to completed`);
+                console.log(`Updated call ${call.id} status to completed`);
             }
         }
         
@@ -1146,7 +1146,7 @@ app.post('/twiml/ask', express.urlencoded({ extended: false }), (req, res) => {
         res.send(response.toString());
         
     } catch (error) {
-        console.error('âŒ Error in TwiML webhook:', error);
+        console.error('Error in TwiML webhook:', error);
         
         // Send a safe TwiML response
         const response = new VoiceResponse();
@@ -1358,7 +1358,7 @@ app.post('/call-status', express.urlencoded({ extended: false }), (req, res) => 
     try {
         const { CallSid, CallStatus, CallDuration, RecordingUrl } = req.body;
         
-        console.log(`ðŸ“ž Call status update for CallSid: ${CallSid}`);
+        console.log(`Call status update for CallSid: ${CallSid}`);
         console.log(`   Status: ${CallStatus}`);
         console.log(`   Duration: ${CallDuration} seconds`);
         console.log(`   Recording URL: ${RecordingUrl}`);
@@ -1381,14 +1381,14 @@ app.post('/call-status', express.urlencoded({ extended: false }), (req, res) => 
             }
             
             saveCalls(callsData);
-            console.log(`âœ… Updated call ${call.id} with status: ${CallStatus}`);
+            console.log(`Updated call ${call.id} with status: ${CallStatus}`);
         } else {
-            console.log(`âš ï¸  Call not found for CallSid: ${CallSid}`);
+            console.log(`Call not found for CallSid: ${CallSid}`);
         }
         
         res.status(200).send('OK');
     } catch (error) {
-        console.error('âŒ Error handling call status:', error);
+        console.error('Error handling call status:', error);
         res.status(500).send('Error');
     }
 });
@@ -1398,7 +1398,7 @@ app.post('/recording_status', express.urlencoded({ extended: false }), (req, res
     try {
         const { CallSid, RecordingSid, RecordingUrl, RecordingStatus } = req.body;
         
-        console.log(`ðŸ“¹ Recording status update for CallSid: ${CallSid}`);
+        console.log(`Recording status update for CallSid: ${CallSid}`);
         console.log(`   RecordingSid: ${RecordingSid}`);
         console.log(`   Status: ${RecordingStatus}`);
         console.log(`   URL: ${RecordingUrl}`);
@@ -1414,14 +1414,14 @@ app.post('/recording_status', express.urlencoded({ extended: false }), (req, res
             call.recording_updated_at = new Date().toISOString();
             saveCalls(callsData);
             
-            console.log(`âœ… Updated call ${call.id} with recording info`);
+            console.log(`Updated call ${call.id} with recording info`);
         } else {
-            console.log(`âš ï¸  Call not found for CallSid: ${CallSid}`);
+            console.log(`Call not found for CallSid: ${CallSid}`);
         }
         
         res.status(200).send('OK');
     } catch (error) {
-        console.error('âŒ Error handling recording status:', error);
+        console.error('Error handling recording status:', error);
         res.status(500).send('Error');
     }
 });
@@ -1514,7 +1514,7 @@ app.get('/api/download-responses', authenticateToken, (req, res) => {
         const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
         res.send(buffer);
 
-        console.log(`ðŸ“Š Excel report downloaded: ${filename} with ${responses.length} responses`);
+        console.log(`Excel report downloaded: ${filename} with ${responses.length} responses`);
 
     } catch (error) {
         console.error('Error generating Excel report:', error);
@@ -1549,14 +1549,14 @@ app.get('/api/responses', authenticateToken, (req, res) => {
         const callsData = loadCalls();
         const usersData = loadUsers();
 
-        console.log('ðŸ” Raw responses from loadResponses():', responses);
-        console.log('ðŸ“‹ First response object:', responses[0]);
-        console.log('ðŸ†” First response ID:', responses[0]?.id);
+        console.log('Raw responses from loadResponses():', responses);
+        console.log('First response object:', responses[0]);
+        console.log('First response ID:', responses[0]?.id);
 
         // Enhance response data with user and call information
         const enhancedResponses = responses.map(response => {
-            console.log('ðŸ” Processing response:', response);
-            console.log('ðŸ†” Response ID before enhancement:', response.id);
+            console.log('Processing response:', response);
+            console.log('Response ID before enhancement:', response.id);
             
             const call = callsData.calls.find(c => c.twilio_call_sid === response.callSid);
             const user = usersData.users.find(u => u.id === (call ? call.userId : null));
@@ -1567,14 +1567,14 @@ app.get('/api/responses', authenticateToken, (req, res) => {
                 phone: call ? call.phone : 'N/A'
             };
             
-            console.log('ðŸ†” Response ID after enhancement:', enhancedResponse.id);
-            console.log('ðŸ“‹ Enhanced response object:', enhancedResponse);
+            console.log('Response ID after enhancement:', enhancedResponse.id);
+            console.log('Enhanced response object:', enhancedResponse);
             
             return enhancedResponse;
         });
 
-        console.log('ðŸ“Š Final enhanced responses:', enhancedResponses);
-        console.log('ðŸ†” First enhanced response ID:', enhancedResponses[0]?.id);
+        console.log('Final enhanced responses:', enhancedResponses);
+        console.log('First enhanced response ID:', enhancedResponses[0]?.id);
 
         res.json({ 
             success: true, 
@@ -1612,8 +1612,8 @@ app.get('/api/responses/:responseId', authenticateToken, (req, res) => {
         }
 
         if (!response) {
-            console.log(`âŒ Response not found for ID: ${responseId}`);
-            console.log(`ðŸ“‹ Available response IDs:`, responses.map(r => r.id));
+            console.log(`Response not found for ID: ${responseId}`);
+            console.log('Available response IDs:', responses.map(r => r.id));
             return res.status(404).json({ 
                 success: false, 
                 message: 'Response not found' 
@@ -2020,7 +2020,7 @@ app.put('/api/calls/:callId', authenticateToken, (req, res) => {
 
         // Save updated calls
         if (saveCalls(callsData)) {
-            console.log(`ðŸ“ Call ${callId} updated successfully`);
+            console.log(`Call ${callId} updated successfully`);
             
             // Cancel any existing scheduled job for this call
             const jobKeys = Array.from(callScheduler.scheduledJobs.keys());
@@ -2032,7 +2032,7 @@ app.put('/api/calls/:callId', authenticateToken, (req, res) => {
                     clearTimeout(existingJob.timeoutId);
                 }
                 callScheduler.scheduledJobs.delete(existingJobKey);
-                console.log(`ðŸ—‘ï¸ Cancelled existing scheduled job for call ${callId}`);
+                console.log(`Cancelled existing scheduled job for call ${callId}`);
             }
             
             // Schedule the updated call
@@ -2091,7 +2091,7 @@ app.delete('/api/calls/:callId', authenticateToken, (req, res) => {
                 clearTimeout(existingJob.timeoutId);
             }
             callScheduler.scheduledJobs.delete(existingJobKey);
-            console.log(`ðŸ—‘ï¸ Cancelled scheduled job for call ${callId}`);
+            console.log(`Cancelled scheduled job for call ${callId}`);
         }
 
         // Remove call from array
@@ -2099,7 +2099,7 @@ app.delete('/api/calls/:callId', authenticateToken, (req, res) => {
 
         // Save updated calls
         if (saveCalls(callsData)) {
-            console.log(`ðŸ—‘ï¸ Call ${callId} deleted successfully`);
+            console.log(`Call ${callId} deleted successfully`);
             res.json({ 
                 success: true, 
                 message: 'Call deleted successfully' 
@@ -2151,7 +2151,7 @@ app.post('/api/trigger-call/:callId', authenticateToken, (req, res) => {
             });
         }
 
-        console.log(`ðŸš€ Call ${callId} triggered immediately by ${req.user.role === 'admin' ? 'admin' : 'user'}`);
+        console.log(`Call ${callId} triggered immediately by ${req.user.role === 'admin' ? 'admin' : 'user'}`);
         
         // Make the call immediately
         makeCall(call)
@@ -2185,7 +2185,7 @@ app.post('/handle-response', (req, res) => {
         const speechResult = req.body.SpeechResult;
         const confidence = req.body.Confidence;
         
-        console.log(`ðŸ“ Received response for question ${question} from call ${callId}: ${speechResult}`);
+        console.log(`Call received response for question ${question} from call ${callId}: ${speechResult}`);
         
         // Load existing responses
         const responses = loadResponses();
@@ -2452,8 +2452,8 @@ app.get('/api/download-response-report/:responseId', authenticateToken, async (r
         }
         
         if (!response) {
-            console.log(`âŒ Response not found for download ID: ${responseId}`);
-            console.log(`ðŸ“‹ Available response IDs:`, responses.map(r => r.id));
+            console.log(`Response not found for download ID: ${responseId}`);
+            console.log('Available response IDs:', responses.map(r => r.id));
             return res.status(404).json({ 
                 success: false, 
                 message: 'Response not found' 
@@ -2630,6 +2630,8 @@ app.get('/api/download-response-report/:responseId', authenticateToken, async (r
             message: 'Failed to generate response report: ' + error.message 
         });
     }
+});
+
 // Individual response download as text file
 app.get('/api/download-response-report/:responseId', authenticateToken, async (req, res) => {
     try {
@@ -2653,8 +2655,8 @@ app.get('/api/download-response-report/:responseId', authenticateToken, async (r
         }
         
         if (!response) {
-            console.log(`âŒ Response not found for download ID: ${responseId}`);
-            console.log(`ðŸ“‹ Available response IDs:`, responses.map(r => r.id));
+            console.log(`Response not found for download ID: ${responseId}`);
+            console.log('Available response IDs:', responses.map(r => r.id));
             return res.status(404).json({ 
                 success: false, 
                 message: 'Response not found' 
@@ -2732,15 +2734,14 @@ app.get('/api/download-response-report/:responseId', authenticateToken, async (r
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`ðŸš€ Server running on http://localhost:${PORT}`);
-    console.log(`ðŸ“ Static files served from: ${__dirname}`);
-    console.log(`ðŸ” JWT Secret: ${***REMOVED***}`);
-    console.log(`ðŸ‘¥ Available users:`);
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log('Loading static files from:', __dirname);
+    console.log('Available users:');
     
     const usersData = loadUsers();
     usersData.users.forEach(user => {
         console.log(`   - ${user.email} (${user.role})`);
     });
-    console.log(`\nðŸ”‘ Password Reset: Token-based system active`);
-    console.log(`   Reset tokens expire in 15 minutes`);
+    console.log('\nPassword Reset: Token-based system active');
+    console.log('   Reset tokens expire in 15 minutes');
 }); 
